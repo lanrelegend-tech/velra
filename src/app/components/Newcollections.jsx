@@ -1,122 +1,78 @@
+
+
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { getProducts } from "../../../lib/getProduct";
+
 function Newcollections() {
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getProducts(["np"]);
+      setProducts(data || []);
+    };
+
+    load();
+  }, []);
+
   return (
-    <div className="w-full py-20 px-10 font-sans text-black">
+    <div className="w-full py-24 px-6 md:px-10 font-sans text-black">
 
       <h1 className="text-center text-4xl tracking-[0.4em] font-[var(--font-playfair)]">
-        New In
+        N E W I N
       </h1>
 
       <p className="text-center mt-3 mb-12 text-gray-500 tracking-wide">
         Explore our new collection
       </p>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
 
-        {/* CARD */}
-        <div className="bg-white text-black flex flex-col hover:scale-105 transition duration-300 shadow-sm">
+        {products.map((item) => (
+          <div
+            key={item.id}
+            className="bg-white flex flex-col hover:scale-105 transition duration-300 shadow-sm rounded-lg overflow-hidden"
+          >
 
-          <img
-            src="/maleshoe1.jpg"
-            alt="product"
-            className="w-full h-72 object-cover"
-          />
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-full h-72 object-contain bg-neutral-50 p-2"
+            />
 
-          <div className="p-3 flex flex-col gap-2 items-center">
+            <div className="p-4 flex flex-col gap-2 items-center">
 
-            <button className="bg-black text-white px-6 py-2 text-xs tracking-widest mt-2 hover:opacity-80 transition">
-              QUICK VIEW
-            </button>
+              <Link href={`/product/${item.id}`}>
+                <button className="bg-black text-white px-6 py-2 text-xs tracking-widest mt-2 hover:opacity-80 transition">
+                  QUICK VIEW
+                </button>
+              </Link>
 
-            <p className="text-sm tracking-wide">HF Tee 023DXP</p>
-            <p className="font-semibold tracking-wider">$5,000</p>
+              <p className="text-sm tracking-wide text-center">
+                VELRA {item.name}
+              </p>
 
-            {/* COLOR OPTIONS */}
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-gray-500">Available:</span>
+              <p className="font-semibold">
+                ${item.price?.toLocaleString()}
+              </p>
 
-              <div className="flex gap-2">
-                <div className="w-4 h-4 rounded-full border bg-black cursor-pointer"></div>
-                <div className="w-4 h-4 rounded-full border bg-white cursor-pointer"></div>
+              <div className="flex gap-2 mt-2 flex-wrap justify-center">
+                {item.sizes?.map((size) => (
+                  <span
+                    key={size}
+                    className="text-xs border px-2 py-1"
+                  >
+                    {size}
+                  </span>
+                ))}
               </div>
-            </div>
 
-          </div>
-        </div>
-
-        {/* CARD 2 */}
-        <div className="bg-white text-black flex flex-col hover:scale-105 transition duration-300 shadow-sm">
-          <img src="/fullcloth1.jpg" className="w-full h-72 object-cover" />
-          <div className="p-3 flex flex-col gap-2 items-center">
-            <button className="bg-black text-white px-6 py-2 text-xs tracking-widest mt-2 hover:opacity-80 transition">
-              QUICK VIEW
-            </button>
-            <p className="text-sm tracking-wide">HF Tee 023DXP</p>
-            <p className="font-semibold">$5,000</p>
-
-            <div className="flex gap-2 mt-2">
-              <div className="w-4 h-4 rounded-full bg-black"></div>
-              <div className="w-4 h-4 rounded-full bg-white border"></div>
             </div>
           </div>
-        </div>
-
-        {/* CARD 3 */}
-        <div className="bg-white text-black flex flex-col hover:scale-105 transition duration-300 shadow-sm">
-          <img src="/maletop3.jpg" className="w-full h-72 object-cover" />
-          <div className="p-3 flex flex-col gap-2 items-center">
-            <button className="bg-black text-white px-6 py-2 text-xs tracking-widest mt-2 hover:opacity-80 transition">
-              QUICK VIEW
-            </button>
-            <p className="text-sm tracking-wide">HF Tee 023DXP</p>
-            <p className="font-semibold">$5,000</p>
-
-            <div className="flex gap-2 mt-2">
-              <div className="w-4 h-4 rounded-full bg-black"></div>
-              <div className="w-4 h-4 rounded-full bg-white border"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* CARD 4 */}
-        <div className="bg-white text-black flex flex-col hover:scale-105 transition duration-300 shadow-sm">
-          <img src="/fullcloth2.jpg" className="w-full h-72 object-cover" />
-          <div className="p-3 flex flex-col gap-2 items-center">
-            <button className="bg-black text-white px-6 py-2 text-xs tracking-widest mt-2 hover:opacity-80 transition">
-              QUICK VIEW
-            </button>
-            <p className="text-sm tracking-wide">HF Tee 023DXP</p>
-            <p className="font-semibold">$5,000</p>
-
-            <div className="flex gap-2 mt-2">
-              <div className="w-4 h-4 rounded-full bg-black"></div>
-              <div className="w-4 h-4 rounded-full bg-white border"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* CARD 5 */}
-        <div className="bg-white text-black flex flex-col hover:scale-105 transition duration-300 shadow-sm">
-          <img src="/maletop5.jpg" className="w-full h-72 object-cover" />
-          <div className="p-3 flex flex-col gap-2 items-center">
-            <button className="bg-black text-white px-6 py-2 text-xs tracking-widest mt-2 hover:opacity-80 transition">
-              QUICK VIEW
-            </button>
-            <p className="text-sm tracking-wide">HF Tee 023DXP</p>
-            <p className="font-semibold">$5,000</p>
-          </div>
-        </div>
-
-        {/* CARD 6 */}
-        <div className="bg-white text-black flex flex-col hover:scale-105 transition duration-300 shadow-sm">
-          <img src="/maletop2.jpg" className="w-full h-72 object-cover" />
-          <div className="p-3 flex flex-col gap-2 items-center">
-            <button className="bg-black text-white px-6 py-2 text-xs tracking-widest mt-2 hover:opacity-80 transition">
-              QUICK VIEW
-            </button>
-            <p className="text-sm tracking-wide">HF Tee 023DXP</p>
-            <p className="font-semibold">$5,000</p>
-          </div>
-        </div>
+        ))}
 
       </div>
     </div>

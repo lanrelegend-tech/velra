@@ -1,107 +1,253 @@
 "use client";
 
+import { useCart } from "../context/CartContext";
+import PaystackPop from "@paystack/inline-js";
 import Link from "next/link";
+import { BsCartX } from "react-icons/bs";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { GoSearch } from "react-icons/go";
 import { CiShoppingCart } from "react-icons/ci";
+import { useRouter } from "next/navigation";
+import { searchProducts } from "../../../lib/getProduct";
 
 function Navbar() {
   const pathname = usePathname();
-  const isShop = pathname === "/shop";
+  const isHome = pathname === "/";
+
+ const { cart, removeFromCart, updateQty, clearCart } = useCart();
+  const router = useRouter();
+
+  const [scrolled, setScrolled] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState([]);
+
+  // SCROLL EFFECT
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // 🔒 LOCK BODY SCROLL (IMPORTANT FIX)
+  useEffect(() => {
+    if (cartOpen || searchOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [cartOpen, searchOpen]);
+
+  // 🔥 DEBOUNCE SEARCH (FIXED)
+  useEffect(() => {
+    const delay = setTimeout(async () => {
+      if (!search.trim()) {
+        setResults([]);
+        return;
+      }
+
+      const data = await searchProducts(search);
+      setResults(data);
+    }, 400);
+
+    return () => clearTimeout(delay);
+  }, [search]);
 
   return (
-    <div className="group fixed top-0 left-0 w-full z-50">
+    <div className="group fixed top-0 left-0 right-0 w-screen z-50">
 
       {/* BACKGROUND */}
       <div
         className={`absolute inset-0 bg-black transition duration-500 ${
-          isShop ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          isHome && !scrolled ? "opacity-0 group-hover:opacity-100" : "opacity-100"
         }`}
-      ></div>
+      />
 
-      {/* CONTENT */}
       <div className="relative flex items-center justify-between px-10 py-6 text-white border-b border-white/20">
 
         {/* LEFT */}
         <div className="flex gap-6 text-xs tracking-widest">
+          <Link href="/">HOME</Link>
 
-          {/* HOME */}
-          <Link href="/" className="relative group/item">
-            HOME
-            <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/item:w-full"></span>
-          </Link>
-
-          {/* SHOP WITH DROPDOWN */}
-          <div className="relative group/shop">
-
-            <Link href="/shop" className="relative">
+          <div className="relative">
+            <div onClick={() => setShopOpen(!shopOpen)} className="cursor-pointer">
               SHOP
-              <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/shop:w-full"></span>
-            </Link>
-
-            {/* DROPDOWN */}
-            <div className="absolute left-0 top-6 hidden group-hover/shop:flex flex-col bg-black/90 backdrop-blur-md text-xs w-44 p-3 gap-3">
-
-              <Link href="/shop" className="relative group/drop">
-                All Products
-                <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/drop:w-full"></span>
-              </Link>
-
-             <Link href="/shop/men" className="relative group/drop">
-  Men
-  <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/drop:w-full"></span>
-</Link>
-
-             <Link href="/shop/women" className="relative group/drop">
-  Women
-  <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/drop:w-full"></span>
-</Link>
-
-      <Link href="/shop/accessories" className="relative group/drop">
-  Accessories
-  <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/drop:w-full"></span>
-</Link>
-
-
             </div>
+
+            {shopOpen && (
+              <div className="absolute top-full mt-2 bg-black p-4 flex flex-col gap-3 text-xs z-50">
+                <Link href="/shop">All Products</Link>
+                <Link href="/shop/men">Men</Link>
+                <Link href="/shop/women">Women</Link>
+                <Link href="/shop/accessories">Accessories</Link>
+              </div>
+            )}
           </div>
 
-          {/* OTHER LINKS */}
-         
-              <Link href="/about" className="relative group/drop">
-  About
-  <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/drop:w-full"></span>
-</Link>
-
-              <Link href="/faq" className="relative group/drop">
-  FAQ
-  <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/drop:w-full"></span>
-</Link>
-
-             <Link href="/contact" className="relative group/drop">
-  Contact
-  <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/drop:w-full"></span>
-</Link>
-
+          <Link href="/about">ABOUT</Link>
+          <Link href="/faq">FAQ</Link>
+          <Link href="/contact">CONTACT</Link>
         </div>
 
         {/* BRAND */}
-        <div className="text-xl tracking-[0.5em] font-[var(--font-playfair)]">
-          V E L R A
-        </div>
+        <div className="text-xl tracking-[0.5em]">V E L R A</div>
 
         {/* RIGHT */}
-        <div className="flex gap-6 items-center text-xs tracking-widest">
+        <div className="flex gap-6 items-center text-xs">
 
-          <p className="relative group/item cursor-pointer">
-            LOGIN
-            <span className="absolute left-0 -bottom-1 w-0 h-[1px] bg-white transition-all duration-300 group-hover/item:w-full"></span>
-          </p>
+          <Link href="/login">Login</Link>
 
-          <GoSearch size={20} className="cursor-pointer hover:opacity-70 transition" />
-          <CiShoppingCart size={25} className="cursor-pointer hover:opacity-70 transition" />
+          <GoSearch size={20} onClick={() => setSearchOpen(true)} />
 
+          <div className="relative">
+            <CiShoppingCart size={25} onClick={() => setCartOpen(true)} />
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-white text-black text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                {cart.length}
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* CART SIDEBAR */}
+        {cartOpen && (
+          <div className="fixed inset-0 z-50">
+
+            {/* BACKDROP */}
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setCartOpen(false)}
+            />
+
+            {/* PANEL */}
+            <div className="absolute right-0 top-0 h-full w-[520px] bg-white text-black flex flex-col">
+
+              <div className="p-5 border-b flex justify-between">
+                <h2>CART</h2>
+                <button onClick={() => setCartOpen(false)}>×</button>
+              </div>
+
+              {/* SCROLL AREA */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+                {cart.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full opacity-60">
+                    <BsCartX size={70} />
+                    <p>Your cart is empty</p>
+                  </div>
+                ) : (
+                  cart.map((item, i) => (
+                    <div key={i} className="flex gap-3 border p-3">
+
+                      <img src={item.image} className="w-16 h-16 object-contain" />
+
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{item.name}</h3>
+                        <p>Size: {item.size}</p>
+                        <p>Qty: {item.qty}</p>
+
+                        <div className="flex gap-2 items-center mt-2">
+                          <button  className="px-2 border" onClick={() => updateQty(item.id, item.size, "dec")}>-</button>
+                          <span>{item.qty}</span>
+                          <button className="px-2 border" onClick={() => updateQty(item.id, item.size, "inc")}>+</button>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => removeFromCart(item.id, item.size)}
+                        className="text-red-500 text-xs"
+                      >
+                        Remove
+                      </button>
+
+                    </div>
+                  ))
+                )}
+
+              </div>
+              {/* FOOTER ACTIONS */}
+<div className="border-t p-4 space-y-3">
+
+  <button
+    onClick={clearCart}
+    className="w-full border py-2 text-sm hover:bg-black hover:text-white transition"
+  >
+    Clear Cart
+  </button>
+
+  <button
+    onClick={() => {
+      setCartOpen(false);
+      router.push("/checkout");
+    }}
+    className="w-full bg-black text-white py-2 text-sm hover:opacity-80 transition"
+  >
+    Proceed to Payment
+  </button>
+
+</div>
+            </div>
+          </div>
+        )}
+
+        {/* SEARCH SIDEBAR */}
+        {searchOpen && (
+          <div className="fixed inset-0 z-50">
+
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setSearchOpen(false)}
+            />
+
+            <div className="absolute right-0 top-0 h-full w-[520px] bg-white text-black flex flex-col">
+
+              <div className="p-5 border-b flex justify-between">
+                <h2>SEARCH</h2>
+                <button onClick={() => setSearchOpen(false)}>×</button>
+              </div>
+
+              <div className="p-5">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full border-b py-2 outline-none"
+                  placeholder="Search products..."
+                />
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5">
+
+                {results.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      router.push(`/product/${item.id}`);
+                      setSearchOpen(false);
+                      setSearch("");
+                    }}
+                    className="flex gap-3 border p-3 cursor-pointer hover:bg-gray-100"
+                  >
+                    <img src={item.image} className="w-12 h-12 object-cover" />
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-xs opacity-70">₦{item.price}</p>
+                    </div>
+                  </div>
+                ))}
+
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
