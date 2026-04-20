@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import Usernavbar from "../components/Usernavbar";
 import { useQuery } from "@tanstack/react-query";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 export default function OrdersPage() {
   const [openOrderId, setOpenOrderId] = useState(null);
@@ -73,7 +75,25 @@ export default function OrdersPage() {
         </div>
 
         {isLoading ? (
-          <p className="text-xs text-gray-500">Loading orders...</p>
+          <div className="space-y-3">
+            {/* HEADER SKELETON */}
+            <div className="grid grid-cols-4 text-xs tracking-widest border-b p-3 bg-gray-50">
+              <Skeleton width={50} height={10} />
+              <Skeleton width={60} height={10} />
+              <Skeleton width={60} height={10} />
+              <Skeleton width={60} height={10} />
+            </div>
+
+            {/* ROW SKELETONS */}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-4 p-3 items-center text-xs border-b">
+                <Skeleton width={50} height={10} />
+                <Skeleton width={70} height={10} />
+                <Skeleton width={60} height={10} />
+                <Skeleton width={40} height={10} />
+              </div>
+            ))}
+          </div>
         ) : orders.length === 0 ? (
           <div className="border border-black/10 p-10 text-center">
             <h2 className="text-sm tracking-widest mb-4">

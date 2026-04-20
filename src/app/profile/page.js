@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Usernavbar from "../components/Usernavbar";
 import { supabase } from "../../../lib/supabase";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,7 @@ export default function ProfilePage() {
     setSignoutModal(false);
     openModal("Signed out successfully");
     setTimeout(() => {
-      router.push("/login");
+      router.push("/");
     }, 1200);
   };
 
@@ -105,7 +107,52 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <p className="p-10 text-center">Loading...</p>;
+    return (
+      <div className="flex flex-col">
+        <Usernavbar />
+
+        <div className="min-h-screen bg-white text-black px-6 py-20 flex justify-center">
+          <div className="w-full max-w-2xl">
+
+            <Skeleton width={180} height={25} className="mx-auto mb-12" />
+
+            <div className="border border-black/10 p-8 flex flex-col gap-6">
+
+              <div>
+                <Skeleton width={80} height={10} className="mb-2" />
+                <Skeleton width={200} height={12} />
+              </div>
+
+              <div>
+                <Skeleton width={80} height={10} className="mb-2" />
+                <Skeleton width={250} height={20} />
+              </div>
+
+              <div>
+                <Skeleton width={80} height={10} className="mb-2" />
+                <Skeleton width={250} height={20} />
+              </div>
+
+              <div>
+                <Skeleton width={80} height={10} className="mb-2" />
+                <Skeleton width={250} height={20} />
+              </div>
+
+            </div>
+
+            <div className="mt-8">
+              <Skeleton height={45} />
+            </div>
+
+            <div className="mt-10 space-y-4">
+              <Skeleton height={45} />
+              <Skeleton height={45} />
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

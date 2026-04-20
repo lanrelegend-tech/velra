@@ -5,6 +5,8 @@ import MonthlySalesChart from "@/app/components/MonthlySalesChart";
 import ConditionalNavbar from "../../components/ConditionalNavbar";
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 export default function DashboardOverview() {
   const queryClient = useQueryClient();
@@ -161,11 +163,27 @@ export default function DashboardOverview() {
 
             <tbody className="divide-y divide-gray-200">
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-4">
-                    Loading...
-                  </td>
-                </tr>
+                <>
+                  {/* HEADER SKELETON ROW */}
+                  <tr className="bg-gray-100">
+                    <td className="py-3 px-2"><Skeleton width={120} height={10} /></td>
+                    <td className="py-3 px-2"><Skeleton width={60} height={10} /></td>
+                    <td className="py-3 px-2"><Skeleton width={60} height={10} /></td>
+                    <td className="py-3 px-2"><Skeleton width={120} height={10} /></td>
+                    <td className="py-3 px-2"><Skeleton width={80} height={10} /></td>
+                  </tr>
+
+                  {/* ROW SKELETONS */}
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="border-b">
+                      <td className="py-4 px-2"><Skeleton width={140} height={10} /></td>
+                      <td className="py-4 px-2"><Skeleton width={60} height={10} /></td>
+                      <td className="py-4 px-2"><Skeleton width={70} height={10} /></td>
+                      <td className="py-4 px-2"><Skeleton width={160} height={10} /></td>
+                      <td className="py-4 px-2"><Skeleton width={90} height={10} /></td>
+                    </tr>
+                  ))}
+                </>
               ) : safeOrders.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center py-4">

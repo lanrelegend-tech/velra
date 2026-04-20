@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabase";
 import Link from "next/link";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   const [editing, setEditing] = useState(null);
@@ -32,6 +35,8 @@ export default function AdminProducts() {
 
   // FETCH PRODUCTS
   const fetchProducts = async () => {
+    setLoading(true);
+
     const { data, error } = await supabase
       .from("products")
       .select("*")
@@ -39,10 +44,12 @@ export default function AdminProducts() {
 
     if (error) {
       console.log("Fetch error:", error.message);
+      setLoading(false);
       return;
     }
 
     setProducts(data || []);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -290,36 +297,56 @@ export default function AdminProducts() {
       {/* LIST */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-        {filtered.map((p) => (
-          <div key={p.id} className="bg-white p-3 rounded shadow">
+        {loading
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white p-3 rounded shadow">
 
-            <img
-              src={p.image || "/placeholder.png"}
-              className="h-32 w-full object-contain mb-2"
-            />
+                <div className="h-32 w-full mb-2 bg-gray-200 animate-pulse rounded" />
 
-            <h3 className="font-semibold">{p.name}</h3>
-            <p>${p.price}</p>
-            <p className="text-xs">
-              {Array.isArray(p.category) ? p.category.join(", ") : p.category}
-            </p>
-            <p className="text-xs">{p.description}</p>
-            <p className="text-xs">
-              {Array.isArray(p.sizes) ? p.sizes.join(", ") : p.sizes}
-            </p>
+                <div className="space-y-2">
+                  <div className="h-4 w-24 bg-gray-200 animate-pulse rounded" />
+                  <div className="h-4 w-16 bg-gray-200 animate-pulse rounded" />
+                  <div className="h-3 w-full bg-gray-200 animate-pulse rounded" />
+                  <div className="h-3 w-20 bg-gray-200 animate-pulse rounded" />
+                </div>
 
-            <div className="flex justify-between mt-2">
-              <button onClick={() => startEdit(p)} className="text-blue-500 text-sm">
-                Edit
-              </button>
+                <div className="flex justify-between mt-3">
+                  <div className="h-4 w-10 bg-gray-200 animate-pulse rounded" />
+                  <div className="h-4 w-10 bg-gray-200 animate-pulse rounded" />
+                </div>
 
-              <button onClick={() => setDeleteId(p.id)} className="text-red-500 text-sm">
-                Delete
-              </button>
-            </div>
+              </div>
+            ))
+          : filtered.map((p) => (
+              <div key={p.id} className="bg-white p-3 rounded shadow">
 
-          </div>
-        ))}
+                <img
+                  src={p.image || "/placeholder.png"}
+                  className="h-32 w-full object-contain mb-2"
+                />
+
+                <h3 className="font-semibold">{p.name}</h3>
+                <p>${p.price}</p>
+                <p className="text-xs">
+                  {Array.isArray(p.category) ? p.category.join(", ") : p.category}
+                </p>
+                <p className="text-xs">{p.description}</p>
+                <p className="text-xs">
+                  {Array.isArray(p.sizes) ? p.sizes.join(", ") : p.sizes}
+                </p>
+
+                <div className="flex justify-between mt-2">
+                  <button onClick={() => startEdit(p)} className="text-blue-500 text-sm">
+                    Edit
+                  </button>
+
+                  <button onClick={() => setDeleteId(p.id)} className="text-red-500 text-sm">
+                    Delete
+                  </button>
+                </div>
+
+              </div>
+            ))}
 
       </div>
 

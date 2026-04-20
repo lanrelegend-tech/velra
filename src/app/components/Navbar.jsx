@@ -28,6 +28,7 @@ function Navbar() {
   const [results, setResults] = useState([]);
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [payModal, setPayModal] = useState(false);
 
   // SCROLL EFFECT
   useEffect(() => {
@@ -192,9 +193,14 @@ function Navbar() {
 
   <button
     onClick={() => {
+      if (cart.length === 0) {
+        setPayModal(true);
+        return;
+      }
+
       setCartOpen(false);
       localStorage.setItem("fromCart", "true");
-  router.push("/login");
+      router.push("/login");
     }}
     className="w-full bg-black text-white py-2 text-sm hover:opacity-80 transition"
   >
@@ -292,7 +298,32 @@ function Navbar() {
   </div>
 )}
 
-    </div>
+    {/* Payment Modal */}
+    {payModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
+
+        <div className="bg-white text-black w-[90%] max-w-md p-6 rounded-lg">
+
+          <h2 className="text-lg font-semibold mb-2">
+            Cart is empty
+          </h2>
+
+          <p className="text-sm opacity-70 mb-6">
+            Select what you want to pay for
+          </p>
+
+          <button
+            onClick={() => setPayModal(false)}
+            className="w-full bg-black text-white py-2 text-sm"
+          >
+            OK
+          </button>
+
+        </div>
+
+      </div>
+    )}
+   </div>
   );
 }
 

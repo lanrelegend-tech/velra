@@ -4,6 +4,8 @@ import { useCart } from "@/app/context/CartContext";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 export default function ProductPage() {
   const { id } = useParams();
@@ -63,7 +65,69 @@ export default function ProductPage() {
 
   // 🔥 LOADING STATE (clean & safe)
   if (loading) {
-    return <div className="p-10 text-center">Loading product...</div>;
+    return (
+      <div className="min-h-screen bg-white px-6 mt-40 py-20 text-black">
+        <div className="max-w-6xl mx-auto">
+
+          <div className="grid md:grid-cols-3 gap-10 items-start">
+
+            {/* LEFT IMAGE SKELETON */}
+            <div className="md:sticky md:top-20">
+              <div className="rounded-2xl border bg-neutral-50 p-4">
+                <div className="w-full h-[520px]">
+                  <Skeleton height="100%" />
+                </div>
+              </div>
+            </div>
+
+            {/* MIDDLE DETAILS SKELETON */}
+            <div className="flex flex-col gap-6">
+              <Skeleton width={200} height={30} />
+              <Skeleton width={120} height={20} />
+
+              <div>
+                <Skeleton width={100} height={12} className="mb-2" />
+                <div className="flex gap-2 flex-wrap">
+                  <Skeleton width={60} height={30} />
+                  <Skeleton width={60} height={30} />
+                  <Skeleton width={60} height={30} />
+                </div>
+              </div>
+
+              <div>
+                <Skeleton width={100} height={12} className="mb-2" />
+                <Skeleton width={120} height={30} />
+              </div>
+
+              <Skeleton height={40} />
+              <Skeleton height={45} />
+            </div>
+
+            {/* RIGHT RELATED SKELETON */}
+            <div>
+              <Skeleton width={120} height={15} className="mb-4" />
+
+              <div className="grid grid-cols-1 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex gap-3 border rounded-xl p-2">
+                    <div className="w-16 h-16">
+                      <Skeleton height="100%" />
+                    </div>
+                    <div className="flex flex-col justify-center gap-2 flex-1">
+                      <Skeleton width={100} height={12} />
+                      <Skeleton width={60} height={10} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    );
   }
 
   // 🔥 NOT FOUND STATE

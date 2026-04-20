@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
@@ -36,7 +38,38 @@ export default function AdminPage() {
   }, [router]);
 
   if (loading) {
-    return <p className="p-6">Checking access...</p>;
+    return (
+      <div className="min-h-screen bg-gray-100 p-6">
+
+        {/* NAVBAR SKELETON */}
+        <div className="bg-white border border-gray-200 shadow-sm rounded-xl mb-6 px-6 py-4 flex items-center justify-between">
+          <Skeleton width={120} height={20} />
+
+          <div className="flex gap-4">
+            <Skeleton width={60} height={15} />
+            <Skeleton width={60} height={15} />
+            <Skeleton width={60} height={15} />
+            <Skeleton width={60} height={15} />
+          </div>
+        </div>
+
+        {/* TITLE SKELETON */}
+        <div className="mt-20 mb-6">
+          <Skeleton width={220} height={35} />
+        </div>
+
+        {/* CARDS SKELETON */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="bg-white p-6 rounded-2xl shadow">
+              <Skeleton width={180} height={20} />
+              <Skeleton width={260} height={15} className="mt-4" />
+            </div>
+          ))}
+        </div>
+
+      </div>
+    );
   }
 
   return (
@@ -68,7 +101,7 @@ export default function AdminPage() {
 
           <Link href="/">
             <span className="text-gray-700 hover:text-black font-medium">
-              Store
+              LogOut
             </span>
           </Link>
         </div>
