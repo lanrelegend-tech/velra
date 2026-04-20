@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Usernavbar from "../components/Usernavbar";
 import { supabase } from "../../../lib/supabase";
@@ -8,6 +9,26 @@ import { supabase } from "../../../lib/supabase";
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [modal, setModal] = useState({ open: false, message: "" });
+  const [signoutModal, setSignoutModal] = useState(false);
+  const router = useRouter();
+
+  const openModal = (message) => {
+    setModal({ open: true, message });
+
+    setTimeout(() => {
+      setModal({ open: false, message: "" });
+    }, 2500);
+  };
+
+  const handleSignout = async () => {
+    await supabase.auth.signOut();
+    setSignoutModal(false);
+    openModal("Signed out successfully");
+    setTimeout(() => {
+      router.push("/login");
+    }, 1200);
+  };
 
   const [profile, setProfile] = useState({
     email: "",
@@ -80,7 +101,7 @@ export default function ProfilePage() {
     });
 
     setEditing(false);
-    alert("Profile updated");
+    openModal("Profile updated ✅");
   };
 
   if (loading) {
@@ -174,15 +195,52 @@ export default function ProfilePage() {
               </button>
             </Link>
 
-            <Link href="/">
-              <button className="w-full mt-4 bg-black text-white py-3 text-xs tracking-widest">
-                SIGN OUT
-              </button>
-            </Link>
+            <button
+              onClick={() => setSignoutModal(true)}
+              className="w-full mt-4 bg-black text-white py-3 text-xs tracking-widest"
+            >
+              SIGN OUT
+            </button>
           </div>
 
         </div>
       </div>
+
+      {signoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded shadow w-[90%] max-w-sm text-center">
+            <h2 className="text-sm text-black font-semibold mb-3">Confirm Sign Out</h2>
+
+            <p className="text-xs text-black mb-6">
+              Are you sure you want to sign out?
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setSignoutModal(false)}
+                className="px-3 py-1 bg-gray-200 text-black text-xs rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSignout}
+                className="px-3 py-1 bg-red-600 text-white text-xs rounded"
+              >
+                Yes, Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-5 rounded shadow w-[90%] max-w-sm text-center">
+            <p className="text-sm font-medium">{modal.message}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

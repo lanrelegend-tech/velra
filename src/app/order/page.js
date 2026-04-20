@@ -111,7 +111,9 @@ export default function OrdersPage() {
                 <div className="grid grid-cols-4 p-3 items-center text-xs">
                   <span>#{order.id.slice(0, 6)}</span>
 
-                  <span>₦{Number(order.total || 0).toLocaleString()}</span>
+                  <span>
+                    ₦{Number(order.total_price || order.total || 0).toLocaleString()}
+                  </span>
 
                   <span className={order.status === "delivered" ? "text-green-600" : "text-yellow-600"}>
                     {order.status || "pending"}
@@ -133,17 +135,31 @@ export default function OrdersPage() {
                     <p className="font-medium">Items:</p>
 
                     {Array.isArray(order.items) ? (
-                      order.items.map((item, idx) => (
-                        <p key={idx}>
-                          • {item.name || item.title} x{item.quantity || 1}
+                      <>
+                        {order.items.map((item, idx) => (
+                          <p key={idx}>
+                            • {item.name || item.title} x{(() => {
+                              const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+                              return isNaN(qty) ? 1 : qty;
+                            })()}
+                          </p>
+                        ))}
+                        <p className="mt-2 text-gray-700">
+                          Total items: {order.items.reduce((sum, item) => {
+                            const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+                            return sum + (isNaN(qty) ? 1 : qty);
+                          }, 0)}
                         </p>
-                      ))
+                      </>
                     ) : (
                       <p>{order.items}</p>
                     )}
 
                     <p className="mt-2 text-gray-500">
                       Email: {order.email}
+                    </p>
+                    <p className="text-gray-500">
+                      Address: {order.address || order.shipping_address || order.customer_address || "No address provided"}
                     </p>
                   </div>
                 )}

@@ -24,8 +24,54 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-  title: "VELRA",
-  description: "Modern clothing brand",
+  title: {
+    default: "VELRA | Modern Luxury Clothing Brand",
+    template: "%s | VELRA",
+  },
+  description:
+    "VELRA is a modern luxury clothing brand offering premium fashion pieces designed for style, comfort, and confidence.",
+  keywords: [
+    "fashion",
+    "luxury clothing",
+    "streetwear",
+    "modern fashion",
+    "VELRA",
+    "mens clothing",
+    "womens fashion",
+  ],
+  authors: [{ name: "VELRA" }],
+  creator: "VELRA",
+  openGraph: {
+    title: "VELRA | Modern Luxury Clothing Brand",
+    description:
+      "Discover premium fashion pieces designed for modern lifestyle and confidence.",
+    url: "https://your-domain.com",
+    siteName: "VELRA",
+    images: [
+      {
+        url: "/model6.jpg",
+        width: 1200,
+        height: 630,
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VELRA | Modern Luxury Clothing Brand",
+    description:
+      "Discover premium fashion pieces designed for modern lifestyle and confidence.",
+    images: ["/model6.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }) {

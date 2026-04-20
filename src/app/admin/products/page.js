@@ -20,6 +20,15 @@ export default function AdminProducts() {
     in_stock: true,
     image: "",
   });
+  const [modal, setModal] = useState({ open: false, message: "", type: "success" });
+  const [deleteId, setDeleteId] = useState(null);
+  // MODAL HELPER
+  const openModal = (message, type = "success") => {
+    setModal({ open: true, message, type });
+    setTimeout(() => {
+      setModal({ open: false, message: "", type: "success" });
+    }, 2500);
+  };
 
   // FETCH PRODUCTS
   const fetchProducts = async () => {
@@ -110,7 +119,7 @@ export default function AdminProducts() {
         return;
       }
 
-      alert("Updated ✅");
+      openModal("Product Updated ✅");
     } else {
       const { error } = await supabase
         .from("products")
@@ -121,7 +130,7 @@ export default function AdminProducts() {
         return;
       }
 
-      alert("Added ✅");
+      openModal("Product Added ✅");
     }
 
     resetForm();
@@ -148,20 +157,22 @@ export default function AdminProducts() {
   };
 
   // DELETE PRODUCT
-  const deleteProduct = async (id) => {
-    if (!confirm("Delete product?")) return;
+  const deleteProduct = async () => {
+    if (!deleteId) return;
 
     const { error } = await supabase
       .from("products")
       .delete()
-      .eq("id", id);
+      .eq("id", deleteId);
 
     if (error) {
       console.log("Delete error:", error.message);
       return;
     }
 
+    setDeleteId(null);
     fetchProducts();
+    openModal("Product deleted 🗑️");
   };
 
   const filtered = products.filter((p) =>
@@ -302,7 +313,7 @@ export default function AdminProducts() {
                 Edit
               </button>
 
-              <button onClick={() => deleteProduct(p.id)} className="text-red-500 text-sm">
+              <button onClick={() => setDeleteId(p.id)} className="text-red-500 text-sm">
                 Delete
               </button>
             </div>
@@ -311,6 +322,42 @@ export default function AdminProducts() {
         ))}
 
       </div>
+
+      {/* MODAL UI */}
+      {modal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-5 rounded shadow w-[90%] max-w-sm text-center">
+            <p className="text-sm font-medium">{modal.message}</p>
+          </div>
+        </div>
+      )}
+
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded w-[90%] max-w-sm">
+            <h2 className="font-semibold mb-3">Confirm Delete</h2>
+            <p className="text-sm text-gray-600 mb-5">
+              Are you sure you want to delete this product?
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="px-3 py-1 bg-gray-200 rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={deleteProduct}
+                className="px-3 py-1 bg-red-600 text-white rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

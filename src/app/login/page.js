@@ -10,6 +10,15 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [modal, setModal] = useState({ open: false, message: "" });
+
+  const openModal = (message) => {
+    setModal({ open: true, message });
+
+    setTimeout(() => {
+      setModal({ open: false, message: "" });
+    }, 2500);
+  };
 
   const handleLogin = async (e) => {
   e.preventDefault();
@@ -21,7 +30,7 @@ export default function LoginPage() {
 
   if (error) {
     console.log("Login error:", error.message);
-    alert(error.message);
+    openModal(error.message);
     return;
   }
 
@@ -122,6 +131,13 @@ export default function LoginPage() {
         </Link>
 
       </div>
+      {modal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white p-5 rounded shadow w-[90%] max-w-sm text-center">
+            <p className="text-sm font-medium">{modal.message}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

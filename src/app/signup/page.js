@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 import { useState } from "react";
+import { Dialog, Transition } from "@headlessui/react";
 import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
@@ -14,6 +15,19 @@ export default function SignupPage() {
     email: "",
     password: "",
   });
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const openModal = (msg) => {
+    setMessage(msg);
+    setIsOpen(true);
+
+    setTimeout(() => {
+      setIsOpen(false);
+      setMessage("");
+    }, 2000);
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -32,7 +46,7 @@ export default function SignupPage() {
 
     if (error) {
       console.log("Signup error:", error.message);
-      alert(error.message);
+      openModal(error.message);
       return;
     }
 
@@ -55,8 +69,9 @@ export default function SignupPage() {
 
     console.log("Signup success:", data);
 
-    // ✅ wait to ensure DB write completes before redirect
-    await new Promise((res) => setTimeout(res, 500));
+    openModal("Account created successfully ✅");
+
+    await new Promise((res) => setTimeout(res, 1200));
 
     router.push("/login");
   };
@@ -140,6 +155,47 @@ export default function SignupPage() {
         </p>
 
       </div>
+
+      <Transition appear show={isOpen} as="div">
+        <Dialog as="div" className="relative z-50" onClose={() => setIsOpen(false)}>
+
+          {/* Backdrop */}
+          <Transition.Child
+            as="div"
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+          </Transition.Child>
+
+          {/* Center container */}
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+
+            <Transition.Child
+              as="div"
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl text-center">
+
+                <Dialog.Title className="text-sm font-semibold text-black">
+                  {message}
+                </Dialog.Title>
+
+              </Dialog.Panel>
+            </Transition.Child>
+
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 }

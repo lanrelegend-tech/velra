@@ -10,6 +10,7 @@ import { GoSearch } from "react-icons/go";
 import { CiShoppingCart } from "react-icons/ci";
 import { useRouter } from "next/navigation";
 import { searchProducts } from "../../../lib/getProduct";
+import { CiLogin } from "react-icons/ci";
 
 function Navbar() {
   const pathname = usePathname();
@@ -105,7 +106,7 @@ function Navbar() {
         {/* RIGHT */}
         <div className="flex gap-6 items-center text-xs">
 
-          <Link href="/login">Login</Link>
+         <Link href="/login" className="hidden md:block">Login</Link>
 
           <div className="md:hidden">
             <BsList size={26} onClick={() => setMobileOpen(true)} />
@@ -263,7 +264,7 @@ function Navbar() {
 
     {/* HEADER */}
     <div className="flex justify-between items-center p-6 border-b border-white/20">
-      <p className="tracking-[0.5em]">V E L R A</p>
+      <p className="tracking-[0.2em]">V E L R A</p>
       <BsX size={30} onClick={() => setMobileOpen(false)} />
     </div>
 
@@ -281,7 +282,10 @@ function Navbar() {
       <Link href="/about" onClick={() => setMobileOpen(false)}>ABOUT</Link>
       <Link href="/faq" onClick={() => setMobileOpen(false)}>FAQ</Link>
       <Link href="/contact" onClick={() => setMobileOpen(false)}>CONTACT</Link>
-      <Link href="/login" onClick={() => setMobileOpen(false)}>LOGIN</Link>
+      <Link href="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
+        <CiLogin />
+        LOGIN
+      </Link>
 
     </div>
 

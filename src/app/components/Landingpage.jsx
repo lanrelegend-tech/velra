@@ -23,7 +23,7 @@ export default function Landingpage() {
       >
 
         <SwiperSlide>
-          <div className="h-screen w-full bg-cover bg-center" style={{ backgroundImage: "url('/model1.jpg')" }} />
+          <div className="h-screen w-full bg- bg-center" style={{ backgroundImage: "url('/model1.jpg')" }} />
         </SwiperSlide>
 
         <SwiperSlide>
