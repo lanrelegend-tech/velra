@@ -45,7 +45,7 @@ export const metadata = {
     title: "VELRA | Modern Luxury Clothing Brand",
     description:
       "Discover premium fashion pieces designed for modern lifestyle and confidence.",
-    url: "https://your-domain.com",
+    url: "velra-s5m1.vercel.app",
     siteName: "VELRA",
     images: [
       {
