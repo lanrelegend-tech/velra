@@ -108,7 +108,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col">
+      <div className="flex  flex-col">
         <Usernavbar />
 
         <div className="min-h-screen bg-white text-black px-6 py-20 flex justify-center">

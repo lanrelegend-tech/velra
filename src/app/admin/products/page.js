@@ -187,7 +187,7 @@ export default function AdminProducts() {
   );
 
   return (
-    <div className="min-h-screen  bg-gray-100 p-6 text-black">
+    <div className="min-h-screen  mb-20 bg-gray-100 p-6 text-black">
 
       {/* ADMIN NAVBAR */}
       <div className="bg-white border border-gray-200 shadow-sm rounded-xl mb-6 px-6 py-4 flex items-center justify-between">

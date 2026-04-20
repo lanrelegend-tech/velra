@@ -80,7 +80,7 @@ export default function DashboardOverview() {
   }
 
     return (
-    <div className="min-h-screen p-8 space-y-10 bg-gray-50 text-black">
+    <div className="min-h-screen p-8 space-y-10 mb-20 bg-gray-50 text-black">
        <div className="bg-white border border-gray-200 shadow-sm rounded-xl mb-6 px-6 py-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-800">
           Admin Panel

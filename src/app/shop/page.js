@@ -67,7 +67,7 @@ function MenPage() {
     });
 
   return (
-    <div className="w-full flex mt-40 text-black">
+    <div className="w-full flex mt-40 mb-30 text-black">
 
       {/* SIDEBAR */}
       <aside className="w-1/5">

@@ -2,7 +2,7 @@
 
 function ContactPage() {
   return (
-    <div className="w-full min-h-screen px-10 py-28 text-black font-sans">
+    <div className="w-full min-h-screen px-10 py-28 my-20 text-black font-sans">
 
       {/* TITLE */}
       <div className="text-center mb-14">
