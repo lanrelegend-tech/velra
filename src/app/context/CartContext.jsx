@@ -3,21 +3,27 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 const CartContext = createContext();
+const getCartKey = (userId) => `cart_${userId || "guest"}`;
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
 
   // LOAD FROM LOCALSTORAGE
   useEffect(() => {
-    const saved = localStorage.getItem("cart");
+    const userId = localStorage.getItem("user_id");
+    const saved = localStorage.getItem(getCartKey(userId));
+
     if (saved) {
       setCart(JSON.parse(saved));
+    } else {
+      setCart([]);
     }
   }, []);
 
   // SAVE TO LOCALSTORAGE
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart));
+    const userId = localStorage.getItem("user_id");
+    localStorage.setItem(getCartKey(userId), JSON.stringify(cart));
   }, [cart]);
 
   // ADD TO CART

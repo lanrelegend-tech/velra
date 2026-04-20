@@ -1,6 +1,7 @@
 "use client";
 
 import { saveOrder } from "../../../lib/saveOrders";// ✅ FIXED NAME
+import { supabase } from "../../../lib/supabase";
 
 import { useCart } from "../context/CartContext";
 import { useRouter } from "next/navigation";
@@ -15,6 +16,45 @@ function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [paystackReady, setPaystackReady] = useState(false);
+
+  // ✅ LOAD USER DATA FROM CUSTOMERS TABLE
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return;
+
+        setEmail(user.email || "");
+
+        const { data, error } = await supabase
+          .from("customers")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        console.log("CUSTOMER DATA:", data);
+        console.log("CUSTOMER ERROR:", error);
+
+        if (error) {
+          console.log("Customer fetch error:", error.message);
+        }
+
+        const meta = user.user_metadata || {};
+
+        // ✅ safe fallbacks (no email-as-name anymore)
+        setName(data?.name || meta.name || "");
+        setAddress(data?.address || "");
+        setPhone(data?.phone || "");
+        setEmail(data?.email || user.email || "");
+
+      } catch (err) {
+        console.log("Load user failed:", err.message);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   // ✅ LOAD PAYSTACK
   useEffect(() => {
@@ -91,7 +131,7 @@ function CheckoutPage() {
     }
 
     clearCart();
-    router.push("/");
+    router.push("/order");
   })();
 },
 

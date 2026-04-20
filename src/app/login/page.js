@@ -12,24 +12,44 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
 
   const handleLogin = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) {
-      console.log("Login error:", error.message);
-      alert(error.message);
-      return;
+  if (error) {
+    console.log("Login error:", error.message);
+    alert(error.message);
+    return;
+  }
+
+  const user = data.user;
+
+  localStorage.setItem("email", user.email);
+
+  // check admin table
+  const { data: admin } = await supabase
+    .from("admins")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  if (admin) {
+    router.push("/admin");   // 🔥 admin goes here
+  } else {
+    const fromCart = localStorage.getItem("fromCart") === "true";
+
+    if (fromCart) {
+      router.push("/checkout"); // from cart → checkout
+      localStorage.removeItem("fromCart");
+    } else {
+      router.push("/order"); // normal user → order page
     }
+  }
 
-    console.log("User logged in:", data);
-
-    // redirect after login
-    router.push("/order");
-  };
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white text-black px-4">

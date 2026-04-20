@@ -4,7 +4,7 @@ import * as Slider from "@radix-ui/react-slider";
 
 function Sidebar({ price, setPrice, inStock, setInStock }) {
   return (
-    <div className="flex flex-col gap-10 p-4 text-sm text-black">
+    <div className="flex flex-col gap-10 p-4 text-sm text-black w-full md:w-[280px] max-h-screen overflow-y-auto">
 
       {/* AVAILABILITY */}
       <div>

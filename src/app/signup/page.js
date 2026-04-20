@@ -18,13 +18,14 @@ export default function SignupPage() {
   const handleSignup = async (e) => {
     e.preventDefault();
 
+    const fullName = `${form.firstName} ${form.lastName}`;
+
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
         data: {
-          first_name: form.firstName,
-          last_name: form.lastName,
+          name: fullName,
         },
       },
     });
@@ -35,7 +36,27 @@ export default function SignupPage() {
       return;
     }
 
+    // ✅ CREATE CUSTOMER RECORD WITH ERROR HANDLING
+    if (data?.user) {
+      const { error: insertError } = await supabase
+        .from("customers")
+        .insert([
+          {
+            id: data.user.id,
+            email: data.user.email,
+            name: fullName,
+          },
+        ]);
+
+      if (insertError) {
+        console.log("Customer insert error:", insertError.message);
+      }
+    }
+
     console.log("Signup success:", data);
+
+    // ✅ wait to ensure DB write completes before redirect
+    await new Promise((res) => setTimeout(res, 500));
 
     router.push("/login");
   };

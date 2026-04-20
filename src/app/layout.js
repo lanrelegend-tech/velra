@@ -1,8 +1,9 @@
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import Navbar from "./components/Navbar";
+import ConditionalNavbar from "./components/ConditionalNavbar";
 import Footer from "./components/Footer";
 import { CartProvider } from "./context/CartContext";
+import ReactQueryProvider from "./components/ReactQueryProvider";
 
 // Body font
 const geistSans = Geist({
@@ -35,17 +36,19 @@ export default function RootLayout({ children }) {
     >
       <body className="min-h-full flex flex-col font-sans">
 
-        <CartProvider>
+        <ReactQueryProvider>
+          <CartProvider>
 
-          <Navbar />
+            <ConditionalNavbar />
 
-          <main className="flex-1">
-            {children}
-          </main>
+            <main className="flex-1">
+              {children}
+            </main>
 
-          <Footer />
+            <Footer />
 
-        </CartProvider>
+          </CartProvider>
+        </ReactQueryProvider>
 
       </body>
     </html>

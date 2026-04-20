@@ -3,7 +3,7 @@
 import { useCart } from "../context/CartContext";
 import PaystackPop from "@paystack/inline-js";
 import Link from "next/link";
-import { BsCartX } from "react-icons/bs";
+import { BsCartX, BsList, BsX } from "react-icons/bs";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { GoSearch } from "react-icons/go";
@@ -25,6 +25,8 @@ function Navbar() {
 
   const [search, setSearch] = useState("");
   const [results, setResults] = useState([]);
+
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // SCROLL EFFECT
   useEffect(() => {
@@ -74,7 +76,7 @@ function Navbar() {
       <div className="relative flex items-center justify-between px-10 py-6 text-white border-b border-white/20">
 
         {/* LEFT */}
-        <div className="flex gap-6 text-xs tracking-widest">
+        <div className="hidden md:flex gap-6 text-xs tracking-widest">
           <Link href="/">HOME</Link>
 
           <div className="relative">
@@ -105,6 +107,10 @@ function Navbar() {
 
           <Link href="/login">Login</Link>
 
+          <div className="md:hidden">
+            <BsList size={26} onClick={() => setMobileOpen(true)} />
+          </div>
+
           <GoSearch size={20} onClick={() => setSearchOpen(true)} />
 
           <div className="relative">
@@ -128,7 +134,7 @@ function Navbar() {
             />
 
             {/* PANEL */}
-            <div className="absolute right-0 top-0 h-full w-[520px] bg-white text-black flex flex-col">
+            <div className="absolute right-0 top-0 h-full w-full md:w-[520px] bg-white text-black flex flex-col">
 
               <div className="p-5 border-b flex justify-between">
                 <h2>CART</h2>
@@ -186,7 +192,8 @@ function Navbar() {
   <button
     onClick={() => {
       setCartOpen(false);
-      router.push("/checkout");
+      localStorage.setItem("fromCart", "true");
+  router.push("/login");
     }}
     className="w-full bg-black text-white py-2 text-sm hover:opacity-80 transition"
   >
@@ -207,7 +214,7 @@ function Navbar() {
               onClick={() => setSearchOpen(false)}
             />
 
-            <div className="absolute right-0 top-0 h-full w-[520px] bg-white text-black flex flex-col">
+            <div className="absolute right-0 top-0 h-full w-full md:w-[520px] bg-white text-black flex flex-col">
 
               <div className="p-5 border-b flex justify-between">
                 <h2>SEARCH</h2>
@@ -250,6 +257,37 @@ function Navbar() {
         )}
 
       </div>
+
+      {mobileOpen && (
+  <div className="fixed inset-0 z-50 bg-black text-white flex flex-col">
+
+    {/* HEADER */}
+    <div className="flex justify-between items-center p-6 border-b border-white/20">
+      <p className="tracking-[0.5em]">V E L R A</p>
+      <BsX size={30} onClick={() => setMobileOpen(false)} />
+    </div>
+
+    {/* LINKS */}
+    <div className="flex flex-col gap-6 p-10 text-lg">
+
+      <Link href="/" onClick={() => setMobileOpen(false)}>HOME</Link>
+
+      <p className="text-sm opacity-70">SHOP</p>
+      <Link href="/shop" onClick={() => setMobileOpen(false)}>All Products</Link>
+      <Link href="/shop/men" onClick={() => setMobileOpen(false)}>Men</Link>
+      <Link href="/shop/women" onClick={() => setMobileOpen(false)}>Women</Link>
+      <Link href="/shop/accessories" onClick={() => setMobileOpen(false)}>Accessories</Link>
+
+      <Link href="/about" onClick={() => setMobileOpen(false)}>ABOUT</Link>
+      <Link href="/faq" onClick={() => setMobileOpen(false)}>FAQ</Link>
+      <Link href="/contact" onClick={() => setMobileOpen(false)}>CONTACT</Link>
+      <Link href="/login" onClick={() => setMobileOpen(false)}>LOGIN</Link>
+
+    </div>
+
+  </div>
+)}
+
     </div>
   );
 }
