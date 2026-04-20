@@ -88,10 +88,23 @@ function Navbar() {
 
             {shopOpen && (
               <div className="absolute top-full mt-2 bg-black p-4 flex flex-col gap-3 text-xs z-50">
-                <Link href="/shop">All Products</Link>
-                <Link href="/shop/men">Men</Link>
-                <Link href="/shop/women">Women</Link>
-                <Link href="/shop/accessories">Accessories</Link>
+
+                <Link href="/shop" onClick={() => setShopOpen(false)}>
+                  All Products
+                </Link>
+
+                <Link href="/shop/men" onClick={() => setShopOpen(false)}>
+                  Men
+                </Link>
+
+                <Link href="/shop/women" onClick={() => setShopOpen(false)}>
+                  Women
+                </Link>
+
+                <Link href="/shop/accessories" onClick={() => setShopOpen(false)}>
+                  Accessories
+                </Link>
+
               </div>
             )}
           </div>
