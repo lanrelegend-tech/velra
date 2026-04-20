@@ -112,7 +112,7 @@ export default function OrdersPage() {
                   <span>#{order.id.slice(0, 6)}</span>
 
                   <span>
-                    ₦{Number(order.total_price || order.total || 0).toLocaleString()}
+                    ${Number(order.total_price || order.total || 0).toLocaleString()}
                   </span>
 
                   <span className={order.status === "delivered" ? "text-green-600" : "text-yellow-600"}>

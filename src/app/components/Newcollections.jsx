@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import Link from "next/link";
@@ -29,12 +27,12 @@ function Newcollections() {
         Explore our new collection
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="flex overflow-x-auto gap-6 pb-4 scroll-smooth">
 
         {products.map((item) => (
           <div
             key={item.id}
-            className="bg-white flex flex-col hover:scale-105 transition duration-300 shadow-sm rounded-lg overflow-hidden"
+            className="bg-white flex flex-col hover:scale-105 transition duration-300 shadow-sm rounded-lg overflow-hidden min-w-[250px] flex-shrink-0"
           >
 
             <img

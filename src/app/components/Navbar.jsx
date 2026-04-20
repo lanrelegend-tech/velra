@@ -273,11 +273,11 @@ function Navbar() {
 
       <Link href="/" onClick={() => setMobileOpen(false)}>HOME</Link>
 
-      <p className="text-sm opacity-70">SHOP</p>
-      <Link href="/shop" onClick={() => setMobileOpen(false)}>All Products</Link>
-      <Link href="/shop/men" onClick={() => setMobileOpen(false)}>Men</Link>
-      <Link href="/shop/women" onClick={() => setMobileOpen(false)}>Women</Link>
-      <Link href="/shop/accessories" onClick={() => setMobileOpen(false)}>Accessories</Link>
+      <p className="">SHOP</p>
+      <Link href="/shop" onClick={() => setMobileOpen(false)} className="text-sm opacity-70">All Products</Link>
+      <Link href="/shop/men" onClick={() => setMobileOpen(false)} className="text-sm opacity-70">Men</Link>
+      <Link href="/shop/women" onClick={() => setMobileOpen(false)} className="text-sm opacity-70">Women</Link>
+      <Link href="/shop/accessories" onClick={() => setMobileOpen(false)} className="text-sm opacity-70">Accessories</Link>
 
       <Link href="/about" onClick={() => setMobileOpen(false)}>ABOUT</Link>
       <Link href="/faq" onClick={() => setMobileOpen(false)}>FAQ</Link>

@@ -299,7 +299,7 @@ export default function AdminProducts() {
             />
 
             <h3 className="font-semibold">{p.name}</h3>
-            <p>₦{p.price}</p>
+            <p>${p.price}</p>
             <p className="text-xs">
               {Array.isArray(p.category) ? p.category.join(", ") : p.category}
             </p>

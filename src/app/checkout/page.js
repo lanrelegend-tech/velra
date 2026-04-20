@@ -213,7 +213,7 @@ function CheckoutPage() {
                 </p>
               </div>
 
-              <p>₦{(item.price * item.qty).toLocaleString()}</p>
+              <p>${(item.price * item.qty).toLocaleString()}</p>
             </div>
           ))}
 
@@ -221,7 +221,7 @@ function CheckoutPage() {
 
         <div className="flex justify-between font-semibold mt-5 border-t pt-3">
           <p>Total</p>
-          <p>₦{total.toLocaleString()}</p>
+          <p>${total.toLocaleString()}</p>
         </div>
 
         <button

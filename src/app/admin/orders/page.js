@@ -4,7 +4,6 @@ import Link from "next/link";
 import MonthlySalesChart from "@/app/components/MonthlySalesChart";
 import ConditionalNavbar from "../../components/ConditionalNavbar";
 import { useMemo } from "react";
-import { supabase } from "../../../../lib/supabase";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function DashboardOverview() {
@@ -14,6 +13,8 @@ export default function DashboardOverview() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
+      const { supabase } = await import("../../../../lib/supabase");
+
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -61,6 +62,8 @@ export default function DashboardOverview() {
 
   // 🔥 UPDATE STATUS
   async function updateOrderStatus(id, status) {
+    const { supabase } = await import("../../../../lib/supabase");
+
     const { error } = await supabase
       .from("orders")
       .update({ status })
@@ -126,7 +129,7 @@ export default function DashboardOverview() {
 
         <div className="p-5 border rounded-xl bg-white hover:shadow-sm transition">
           <p className="text-xs text-gray-500">Revenue</p>
-          <p className="text-2xl font-semibold text-green-600">₦{totalRevenue.toLocaleString()}</p>
+          <p className="text-2xl font-semibold text-green-600">${totalRevenue.toLocaleString()}</p>
         </div>
 
         <div className="p-5 border rounded-xl bg-white hover:shadow-sm transition">
@@ -173,7 +176,7 @@ export default function DashboardOverview() {
                 safeOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition">
                     <td className="py-4 px-2">{order.email}</td>
-                    <td className="py-4 px-2">₦{Number(order.total || 0).toLocaleString()}</td>
+                    <td className="py-4 px-2">${Number(order.total || 0).toLocaleString()}</td>
                     <td className="py-4 px-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         order.status === "delivered"
