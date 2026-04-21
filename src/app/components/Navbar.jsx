@@ -115,7 +115,7 @@ function Navbar() {
         </div>
 
         {/* BRAND */}
-        <div className="text-xl tracking-[0.5em]">V E L R A</div>
+        <div className="text-xl tracking-[0.1em]">V E L R A</div>
 
         {/* RIGHT */}
         <div className="flex gap-6 items-center text-xs">
