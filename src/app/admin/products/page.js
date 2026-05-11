@@ -37,7 +37,7 @@ export default function AdminProducts() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3001/products");
+      const res = await fetch("https://velra-1.onrender.com/products");
       const data = await res.json();
 
       setProducts(data || []);
@@ -114,8 +114,8 @@ export default function AdminProducts() {
     try {
       const method = editing?.id ? "PUT" : "POST";
       const url = editing?.id
-        ? `http://localhost:3001/products/${editing.id}`
-        : "http://localhost:3001/products";
+        ? `https://velra-1.onrender.com/products/${editing.id}`
+        : "https://velra-1.onrender.com/products";
 
       const res = await fetch(url, {
         method,
@@ -167,7 +167,7 @@ export default function AdminProducts() {
     if (!deleteId) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/products/${deleteId}`, {
+      const res = await fetch(`https://velra-1.onrender.com/products/${deleteId}`, {
         method: "DELETE",
       });
 

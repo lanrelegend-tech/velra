@@ -15,7 +15,7 @@ export default function DashboardOverview() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const res = await fetch("http://localhost:3001/orders");
+      const res = await fetch("https://velra-1.onrender.com/orders");
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Failed to fetch orders");
@@ -90,7 +90,7 @@ export default function DashboardOverview() {
   // 🔥 UPDATE STATUS
   async function updateOrderStatus(id, status) {
     try {
-      const res = await fetch(`http://localhost:3001/orders/${id}`, {
+      const res = await fetch(`https://velra-1.onrender.com/orders/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
