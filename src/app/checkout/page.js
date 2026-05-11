@@ -203,14 +203,23 @@ function CheckoutPage() {
 
     console.log("ORDER RESPONSE:", savedOrder);
 
-    // ✅ SAFE ORDER ID EXTRACTION (handles multiple backend response shapes)
+    // 🧾 SAFE ORDER ID (Supabase primary key)
     const orderId =
-      savedOrder?.product?.[0]?.id ||
-      savedOrder?.data?.[0]?.id ||
-      savedOrder?.id;
+      savedOrder?.order?.id ||
+      savedOrder?.order?.[0]?.id ||
+      savedOrder?.id ||
+      null;
+
+    console.log("🧾 FINAL ORDER ID:", orderId);
 
     if (!orderRes.ok || !orderId) {
-      openModal("Failed to create order");
+      console.log("❌ ORDER CREATION FAILED OR INVALID ORDER ID", {
+        orderResOk: orderRes.ok,
+        orderId,
+        savedOrder
+      });
+
+      openModal("Failed to create order. Please try again.");
       return;
     }
 
