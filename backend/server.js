@@ -46,6 +46,14 @@ app.use("/orders", orderRoutes);
 app.use("/paystack", paystackRoutes);
 
 // =========================
+// WEBHOOK TEST ROUTE (DEBUG)
+// =========================
+app.get("/webhook-test", (req, res) => {
+  console.log("🧪 WEBHOOK TEST HIT");
+  res.json({ ok: true });
+});
+
+// =========================
 // SUPABASE
 // =========================
 const supabase = createClient(
