@@ -173,28 +173,40 @@ router.post('/', async (req, res) => {
         return res.sendStatus(200);
       }
 
+      // PREVENT DUPLICATE WEBHOOK PROCESSING
+      if (order.payment_status === "paid") {
+        console.log("⚠️ ORDER ALREADY PROCESSED, SKIPPING:", order.id);
+        return res.sendStatus(200);
+      }
+
       // UPDATE ORDER
-      await supabase
+      const { data: updatedOrder, error: updateError } = await supabase
         .from('orders')
         .update({
           status: 'paid',
           payment_status: 'paid',
           payment_method: 'card'
         })
-        .eq('id', order.id);
+        .eq('id', order.id)
+        .select()
+        .single();
 
-      console.log('✅ ORDER UPDATED:', order.id);
+      if (updateError) {
+        console.log("❌ ORDER UPDATE ERROR:", updateError.message);
+      }
+
+      const finalOrder = updatedOrder || order;
 
       // SEND EMAIL
-      if (order.email) {
+      if (finalOrder.email) {
         let items = [];
 
         try {
           items =
-            typeof order.items === "string"
-              ? JSON.parse(order.items)
-              : Array.isArray(order.items)
-              ? order.items
+            typeof finalOrder.items === "string"
+              ? JSON.parse(finalOrder.items)
+              : Array.isArray(finalOrder.items)
+              ? finalOrder.items
               : [];
         } catch (e) {
           console.log("❌ ITEM PARSE ERROR:", e.message);
@@ -210,17 +222,17 @@ router.post('/', async (req, res) => {
               .join("\n")
           : "No items found";
 
-        const emailMessage = `Hi ${order.name},
+        const emailMessage = `Hi ${finalOrder.name},
 
 Your payment was successful 🎉
 
-🧾 Order ID: ${order.id}
-📦 Order Status: ${order.status || "paid"}
+🧾 Order ID: ${finalOrder.id}
+📦 Order Status: ${finalOrder.payment_status || "paid"}
 
 🛍 Products:
 ${productList}
 
-💰 Total Amount: ₦${order.total || "N/A"}
+💰 Total Amount: ₦${finalOrder.total || "N/A"}
 
 🙏 Thanks for trusting Velra. We truly appreciate your order and we are preparing it for delivery.
 
@@ -229,7 +241,7 @@ If you have any questions, feel free to contact us anytime.
 — Velra Team`;
 
         await sendEmail(
-          order.email,
+          finalOrder.email,
           "Payment Confirmed 🎉 - Velra",
           emailMessage
         );
