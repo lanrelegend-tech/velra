@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,44 +20,51 @@ export default function LoginPage() {
   };
 
   const handleLogin = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const { createClient } = await import("@supabase/supabase-js");
 
-  if (error) {
-    console.log("Login error:", error.message);
-    openModal(error.message);
-    return;
-  }
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
 
-  const user = data.user;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  localStorage.setItem("email", user.email);
-
-  // check admin table
-  const { data: admin } = await supabase
-    .from("admins")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-
-  if (admin) {
-    router.push("/admin");   // 🔥 admin goes here
-  } else {
-    const fromCart = localStorage.getItem("fromCart") === "true";
-
-    if (fromCart) {
-      router.push("/checkout"); // from cart → checkout
-      localStorage.removeItem("fromCart");
-    } else {
-      router.push("/order"); // normal user → order page
+    if (error) {
+      console.log("Login error:", error.message);
+      openModal(error.message);
+      return;
     }
-  }
 
-};
+    const user = data.user;
+
+    localStorage.setItem("email", user.email);
+
+    // check admin table
+    const { data: admin } = await supabase
+      .from("admins")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    if (admin) {
+      router.push("/admin");   // 🔥 admin goes here
+    } else {
+      const fromCart = localStorage.getItem("fromCart") === "true";
+
+      if (fromCart) {
+        router.push("/checkout"); // from cart → checkout
+        localStorage.removeItem("fromCart");
+      } else {
+        router.push("/order"); // normal user → order page
+      }
+    }
+
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white text-black px-4">
