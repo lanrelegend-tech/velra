@@ -2,7 +2,12 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
-const { Resend } = require('resend');
+let Resend;
+try {
+  Resend = require('resend').Resend;
+} catch (err) {
+  console.log('⚠️ Resend package not available');
+}
 
 // =========================
 // SUPABASE
@@ -12,9 +17,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY && Resend
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 const sendEmail = async (to, subject, text) => {
+  if (!resend) {
+    console.log('⚠️ EMAIL SKIPPED (Resend not configured)');
+    return;
+  }
   try {
     const { data, error } = await resend.emails.send({
       from: 'Velra <onboarding@resend.dev>',
@@ -53,12 +64,12 @@ router.post('/', async (req, res) => {
     console.log('🔥 WEBHOOK HIT');
 
     const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret) {
+      console.log('❌ PAYSTACK SECRET NOT SET');
+    }
 
     // SAFE RAW BODY HANDLING
-    const payload =
-      typeof req.rawBody === "string"
-        ? req.rawBody
-        : JSON.stringify(req.body);
+    const payload = req.rawBody || JSON.stringify(req.body);
 
     const signature = req.headers['x-paystack-signature'];
 
