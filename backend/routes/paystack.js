@@ -65,10 +65,12 @@ router.post('/webhook', async (req, res) => {
   try {
     const secret = process.env.PAYSTACK_SECRET_KEY;
 
-    // ⚠️ Paystack requires RAW body for correct signature verification
-    const payload = typeof req.body === 'string'
-      ? req.body
-      : JSON.stringify(req.body);
+    // ⚠️ Ensure raw payload consistency for signature verification
+    const payload = req.rawBody
+      ? req.rawBody.toString()
+      : typeof req.body === 'string'
+        ? req.body
+        : JSON.stringify(req.body);
 
     const hash = crypto
       .createHmac('sha512', secret)
@@ -123,7 +125,6 @@ router.post('/webhook', async (req, res) => {
 
       // 🔎 SAFE ORDER RESOLUTION (invoice-first)
       let order = null;
-      let error = null;
 
       // 🧾 1. Try invoice_id first (MOST RELIABLE)
       if (invoice_id) {
@@ -131,10 +132,9 @@ router.post('/webhook', async (req, res) => {
           .from("orders")
           .select("*")
           .eq("invoice_id", invoice_id)
-          .single();
+          .maybeSingle();
 
         order = result.data;
-        error = result.error;
       }
 
       // 🔁 2. Fallback to Paystack reference (legacy support)
@@ -143,15 +143,15 @@ router.post('/webhook', async (req, res) => {
           .from("orders")
           .select("*")
           .eq("payment_ref", reference)
-          .single();
+          .maybeSingle();
 
         order = result.data;
-        error = result.error;
       }
 
       // ❌ 3. If still not found, log and exit safely
-      if (!order || error) {
+      if (!order) {
         console.log("❌ ORDER NOT FOUND:", { invoice_id, reference });
+        console.log("🧾 DEBUG PAYLOAD:", { invoice_id, reference, event: event?.event });
 
         await logWebhook({
           source: "paystack",
@@ -183,7 +183,7 @@ router.post('/webhook', async (req, res) => {
       console.log("✅ ORDER UPDATED:", updatedOrder);
 
       // 📧 EMAIL NOTIFICATION
-      if (order?.email) {
+      if (order && order.email) {
         try {
           await sendEmail(
             order.email,

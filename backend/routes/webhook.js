@@ -121,40 +121,77 @@ router.post('/', async (req, res) => {
         payload: body
       });
 
-      const { data: order, error } = await supabase
+      // 🧾 SAFE ORDER RESOLUTION (invoice-first)
+      let order = null;
+
+      // 1. Try invoice_id first
+      if (invoice_id) {
+        const resOrder = await supabase
+          .from("orders")
+          .select("*")
+          .eq("invoice_id", invoice_id)
+          .single();
+
+        order = resOrder.data;
+      }
+
+      // 2. Fallback to Paystack reference
+      if (!order && reference) {
+        const resOrder = await supabase
+          .from("orders")
+          .select("*")
+          .eq("payment_ref", reference)
+          .single();
+
+        order = resOrder.data;
+      }
+
+      // 3. Stop if not found
+      if (!order) {
+        console.log("❌ ORDER NOT FOUND:", { invoice_id, reference });
+
+        await logWebhook({
+          source: "paystack",
+          event: "order_not_found",
+          status: "failed",
+          payload: body
+        });
+
+        return res.sendStatus(200);
+      }
+
+      // 4. NOW update safely using ID
+      await supabase
         .from("orders")
         .update({
           payment_status: "paid",
           payment_method: "card"
         })
-        .eq("invoice_id", invoice_id || reference)
-        .select()
-        .single();
+        .eq("id", order.id);
 
-      if (error) throw error;
+      if (order?.email) {
+        try {
+          await sendEmail(
+            order.email,
+            "Payment Confirmed 🎉",
+            `Hi ${order.name},\n\nYour payment is confirmed 🎉\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || invoice_id || "N/A"}`
+          );
 
-      try {
-        await sendEmail(
-          order.email,
-          "Payment Confirmed 🎉",
-          `Hi ${order.name},\n\nYour payment is confirmed 🎉\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || invoice_id || "N/A"}`
-        );
-
-        await logWebhook({
-          source: "paystack",
-          event: "email_sent",
-          status: "success",
-          payload: order
-        });
-
-      } catch (err) {
-        await logWebhook({
-          source: "paystack",
-          event: "email_failed",
-          status: "failed",
-          payload: order,
-          error: err.message
-        });
+          await logWebhook({
+            source: "paystack",
+            event: "email_sent",
+            status: "success",
+            payload: order
+          });
+        } catch (err) {
+          await logWebhook({
+            source: "paystack",
+            event: "email_failed",
+            status: "failed",
+            payload: order,
+            error: err.message
+          });
+        }
       }
     }
 
@@ -176,6 +213,11 @@ router.post('/', async (req, res) => {
         .eq("id", order_id)
         .select()
         .single();
+
+      if (!order) {
+        console.log("❌ CRYPTO ORDER NOT FOUND");
+        return res.sendStatus(200);
+      }
 
       try {
         await sendEmail(

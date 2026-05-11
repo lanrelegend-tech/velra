@@ -13,7 +13,12 @@ const paystackRoutes = require('./routes/paystack');
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+// ✅ Capture raw body for webhook signature verification
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}));
 console.log("📦 Backend routes initializing...");
 app.use('/orders', orderRoutes);
 app.use('/paystack', paystackRoutes);

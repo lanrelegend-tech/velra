@@ -100,22 +100,27 @@ router.put('/:id/payment-success', async (req, res) => {
       .from('orders')
       .update({ payment_status: 'paid' })
       .eq('id', id)
-      .select();
+      .select()
+      .single();
 
     if (error) {
       return res.status(400).json({ error: error.message });
     }
 
-    const order = Array.isArray(data) ? data[0] : data;
+    const order = data;
 
     if (order?.email) {
-      await sendEmail(
-        order.email,
-        'Payment Confirmed - Velra',
-        `Hi ${order.name},\n\nYour payment has been confirmed 🎉\n\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || 'N/A'}\n\n🛒 Items Purchased:\n${Array.isArray(order.items) && order.items.length
-          ? order.items.map(i => `- ${i.name} x${i.qty || 1}`).join('\n')
-          : 'No items available'}\n\nWe are processing your order.`
-      );
+      try {
+        await sendEmail(
+          order.email,
+          'Payment Confirmed - Velra',
+          `Hi ${order.name},\n\nYour payment has been confirmed 🎉\n\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || 'N/A'}\n\n🛒 Items Purchased:\n${Array.isArray(order.items) && order.items.length
+            ? order.items.map(i => `- ${i.name} x${i.qty || 1}`).join('\n')
+            : 'No items available'}\n\nWe are processing your order.`
+        );
+      } catch (err) {
+        console.log('❌ PAYMENT EMAIL ERROR:', err.message);
+      }
     }
 
     return res.json({ message: 'Payment updated', order });
@@ -144,11 +149,15 @@ router.put('/:id', async (req, res) => {
     const order = Array.isArray(data) ? data[0] : data;
 
     if (order?.email) {
-      await sendEmail(
-        order.email,
-        'Order Update - Velra',
-        `Hi ${order.name},\n\nYour order status is now: ${status}`
-      );
+      try {
+        await sendEmail(
+          order.email,
+          'Order Update - Velra',
+          `Hi ${order.name},\n\nYour order status is now: ${status}`
+        );
+      } catch (err) {
+        console.log('❌ STATUS EMAIL ERROR:', err.message);
+      }
     }
 
     return res.json({ message: 'Order updated', order });
