@@ -114,7 +114,7 @@ function CheckoutPage() {
 
     try {
       setStep("creating_invoice");
-      const res = await fetch("https://velra-1.onrender.com/crypto/create-checkout", {
+      const res = await fetch("https://velra-2.onrender.com/crypto/create-checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -164,7 +164,7 @@ function CheckoutPage() {
   };
 
   // ✅ PAYMENT FUNCTION
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (!name || !address || !phone || !email) {
       openModal("Fill all fields");
       return;
@@ -180,6 +180,34 @@ function CheckoutPage() {
       return;
     }
 
+    // 🧾 CREATE ORDER FIRST (so webhook can find it)
+    const orderRes = await fetch("https://velra-2.onrender.com/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        phone,
+        address,
+        items: cart,
+        total,
+        status: "pending",
+        payment_status: "unpaid",
+        payment_method: "card",
+      }),
+    });
+
+    const savedOrder = await orderRes.json();
+
+    if (!orderRes.ok || !savedOrder?.product?.[0]?.id) {
+      openModal("Failed to create order");
+      return;
+    }
+
+    const orderId = savedOrder.product[0].id;
+
     const handler = window.PaystackPop.setup({
       key: "pk_test_499eccfecb3ba036608bc11567ea7a641205b940",
       email,
@@ -190,44 +218,25 @@ function CheckoutPage() {
         name,
         phone,
         address,
+        order_id: orderId,
       },
 
       callback: function (response) {
   (async () => {
     console.log("Payment success:", response);
 
-    const orderData = {
-      name,
-      email,
-      phone,
-      address,
-      items: cart,
-      total,
-      payment_ref: response.reference,
-      status: "pending",
-      payment_status: "unpaid",
-      payment_method: "card",
-    };
-
-    // 📡 Send order to backend (this triggers email + Supabase save)
-    const res = await fetch("https://velra-1.onrender.com/orders", {
-      method: "POST",
+    // 🔄 UPDATE ORDER WITH PAYMENT REF
+    await fetch("https://velra-2.onrender.com/orders/" + orderId, {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify({
+        payment_ref: response.reference,
+        payment_status: "paid",
+      }),
     });
 
-    const saved = await res.json();
-
-    console.log("Saved order raw response:", saved);
-
-    if (!res.ok) {
-      openModal("Order failed to save");
-      return;
-    }
-
-    // ✅ Webhook will handle payment confirmation + email
     clearCart();
     router.push("/order/success");
   })();

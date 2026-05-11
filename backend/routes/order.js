@@ -137,11 +137,18 @@ router.put('/:id/payment-success', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, payment_status, payment_ref } = req.body;
+
+    // Build dynamic update object
+    const updateData = {};
+
+    if (status !== undefined) updateData.status = status;
+    if (payment_status !== undefined) updateData.payment_status = payment_status;
+    if (payment_ref !== undefined) updateData.payment_ref = payment_ref;
 
     const { data, error } = await supabase
       .from('orders')
-      .update({ status })
+      .update(updateData)
       .eq('id', id)
       .select();
 
