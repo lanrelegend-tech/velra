@@ -37,7 +37,6 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.options("*", cors());
 
 // 🔥 RAW BODY FIX FOR PAYSTACK
 app.use(
