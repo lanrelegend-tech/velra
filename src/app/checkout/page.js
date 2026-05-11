@@ -217,14 +217,21 @@ function CheckoutPage() {
 
     console.log("🧾 RAW ORDER RESPONSE:", savedOrder);
 
-    // 🧾 STRICT ORDER ID (ONLY TRUST BACKEND ORDER OBJECT)
-    const orderId = savedOrder?.order?.id || savedOrder?.id || null;
+    // 🧾 FINAL ORDER ID (STRICT - ONLY TRUST BACKEND ORDER UUID)
+    const orderId = savedOrder?.order?.id?.toString()?.trim();
 
     console.log("🧾 FINAL ORDER ID:", orderId);
 
-    // 🚨 HARD STOP IF ORDER ID IS INVALID
-    if (!orderId) {
-      console.log("❌ ORDER CREATION FAILED:", savedOrder);
+    console.log("🔥 PAYSTACK METADATA CHECK:", {
+      order_id: orderId,
+      name,
+      phone,
+      address,
+    });
+
+    // 🚨 HARD STOP IF INVALID OR MISSING
+    if (!orderId || typeof orderId !== "string") {
+      console.log("❌ INVALID ORDER RESPONSE:", savedOrder);
       openModal("Failed to create order. Try again.");
       return;
     }
@@ -236,9 +243,9 @@ function CheckoutPage() {
       currency: "NGN",
 
       metadata: {
-        name,
-        phone,
-        address,
+        name: name?.toString()?.trim(),
+        phone: phone?.toString()?.trim(),
+        address: address?.toString()?.trim(),
         order_id: orderId,
       },
 

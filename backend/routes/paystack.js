@@ -112,6 +112,25 @@ router.post('/', async (req, res) => {
 
       let order = null;
 
+      // 0. ORDER ID LOOKUP (PRIMARY FIX FOR FRONTEND FLOW)
+      const order_id = event?.data?.metadata?.order_id;
+
+      if (order_id) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', order_id)
+          .maybeSingle();
+
+        if (error) {
+          console.log("❌ SUPABASE ERROR (order_id lookup):", error.message);
+        }
+
+        if (data) {
+          order = data;
+        }
+      }
+
       // 1. Invoice lookup
       if (invoice_id) {
         const { data, error } = await supabase

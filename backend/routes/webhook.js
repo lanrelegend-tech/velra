@@ -138,50 +138,31 @@ router.post("/", async (req, res) => {
       const invoice_id = body?.data?.metadata?.invoice_id;
       const reference = body?.data?.reference;
 
-      const order_id = body?.data?.metadata?.order_id;
+      // 🔥 STRICT SINGLE SOURCE OF TRUTH: order_id ONLY
+      const orderId = body?.data?.metadata?.order_id;
 
-      console.log("📦 ORDER_ID FROM METADATA:", order_id);
-
-      console.log("🧾 INVOICE:", invoice_id);
-      console.log("🔁 REF:", reference);
+      console.log("📦 ORDER_ID FROM METADATA:", orderId);
 
       let order = null;
 
-      // 1. PRIORITY: order_id from checkout metadata (NEW SYSTEM)
-      if (order_id) {
-        const res1 = await supabase
+      if (orderId) {
+        const { data, error } = await supabase
           .from("orders")
           .select("*")
-          .eq("id", order_id)
+          .eq("id", orderId)
           .maybeSingle();
 
-        order = res1.data;
-      }
+        if (error) {
+          console.log("❌ SUPABASE ERROR (order_id):", error.message);
+        }
 
-      // 2. FALLBACK: invoice_id (legacy support)
-      if (!order && invoice_id) {
-        const res2 = await supabase
-          .from("orders")
-          .select("*")
-          .eq("invoice_id", invoice_id)
-          .maybeSingle();
-
-        order = res2.data;
-      }
-
-      // 3. FINAL FALLBACK: reference
-      if (!order && reference) {
-        const res3 = await supabase
-          .from("orders")
-          .select("*")
-          .eq("payment_ref", reference)
-          .maybeSingle();
-
-        order = res3.data;
+        if (data) {
+          order = data;
+        }
       }
 
       if (!order) {
-        console.log("❌ ORDER NOT FOUND");
+        console.log("❌ ORDER NOT FOUND (INVALID ORDER_ID)");
 
         await logWebhook({
           source: "paystack",
