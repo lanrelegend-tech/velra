@@ -138,29 +138,46 @@ router.post("/", async (req, res) => {
       const invoice_id = body?.data?.metadata?.invoice_id;
       const reference = body?.data?.reference;
 
+      const order_id = body?.data?.metadata?.order_id;
+
+      console.log("📦 ORDER_ID FROM METADATA:", order_id);
+
       console.log("🧾 INVOICE:", invoice_id);
       console.log("🔁 REF:", reference);
 
       let order = null;
 
-      if (invoice_id) {
+      // 1. PRIORITY: order_id from checkout metadata (NEW SYSTEM)
+      if (order_id) {
         const res1 = await supabase
           .from("orders")
           .select("*")
-          .eq("invoice_id", invoice_id)
+          .eq("id", order_id)
           .maybeSingle();
 
         order = res1.data;
       }
 
-      if (!order && reference) {
+      // 2. FALLBACK: invoice_id (legacy support)
+      if (!order && invoice_id) {
         const res2 = await supabase
+          .from("orders")
+          .select("*")
+          .eq("invoice_id", invoice_id)
+          .maybeSingle();
+
+        order = res2.data;
+      }
+
+      // 3. FINAL FALLBACK: reference
+      if (!order && reference) {
+        const res3 = await supabase
           .from("orders")
           .select("*")
           .eq("payment_ref", reference)
           .maybeSingle();
 
-        order = res2.data;
+        order = res3.data;
       }
 
       if (!order) {
