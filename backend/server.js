@@ -4,7 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
 const { createClient } = require("@supabase/supabase-js");
 
@@ -24,7 +24,14 @@ app.use((req, res, next) => {
 // =========================
 // MIDDLEWARE
 // =========================
-app.use(cors());
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+app.options("*", cors());
 
 // 🔥 RAW BODY FIX FOR PAYSTACK
 app.use(
@@ -62,26 +69,27 @@ const supabase = createClient(
 );
 
 // =========================
-// EMAIL SETUP
+// RESEND CLIENT
 // =========================
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
+// =========================
+// EMAIL SENDING FUNCTION
+// =========================
 const sendEmail = async (to, subject, text) => {
   try {
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER,
+    const { data, error } = await resend.emails.send({
+      from: "Velra <onboarding@resend.dev>",
       to,
       subject,
       text,
     });
 
-    console.log("📧 EMAIL SENT:", to);
+    if (error) {
+      console.log("❌ RESEND ERROR:", error);
+    } else {
+      console.log("📧 EMAIL SENT:", to);
+    }
   } catch (err) {
     console.log("❌ EMAIL ERROR:", err.message);
   }
