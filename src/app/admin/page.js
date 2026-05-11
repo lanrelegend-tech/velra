@@ -6,7 +6,6 @@ import Link from "next/link";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
-export const dynamic = "force-dynamic";
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
