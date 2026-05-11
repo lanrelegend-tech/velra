@@ -199,17 +199,31 @@ function CheckoutPage() {
       }),
     });
 
-    const savedOrder = await orderRes.json();
+    // 🚨 STOP EARLY IF REQUEST FAILED
+    if (!orderRes.ok) {
+      console.log("❌ ORDER REQUEST FAILED:", orderRes.status);
+      openModal("Failed to create order. Try again.");
+      return;
+    }
+
+    let savedOrder;
+    try {
+      savedOrder = await orderRes.json();
+    } catch (err) {
+      console.log("❌ INVALID JSON RESPONSE FROM ORDER API:", err);
+      openModal("Server error. Try again.");
+      return;
+    }
 
     console.log("🧾 RAW ORDER RESPONSE:", savedOrder);
 
-    // ✅ STRICT ORDER ID EXTRACTION (ONLY TRUST BACKEND ORDER OBJECT)
-    const orderId = savedOrder?.order?.id ?? null;
+    // 🧾 STRICT ORDER ID (ONLY TRUST BACKEND ORDER OBJECT)
+    const orderId = savedOrder?.order?.id || savedOrder?.id || null;
 
     console.log("🧾 FINAL ORDER ID:", orderId);
 
-    // 🚨 HARD STOP IF ORDER CREATION FAILED
-    if (!orderRes.ok || !orderId) {
+    // 🚨 HARD STOP IF ORDER ID IS INVALID
+    if (!orderId) {
       console.log("❌ ORDER CREATION FAILED:", savedOrder);
       openModal("Failed to create order. Try again.");
       return;
