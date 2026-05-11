@@ -24,8 +24,9 @@ const sendEmail = async (to, subject, text) => {
     console.log('⚠️ EMAIL SKIPPED (Resend not configured)');
     return;
   }
+
   try {
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: 'Velra <onboarding@resend.dev>',
       to,
       subject,
@@ -72,8 +73,8 @@ router.post('/', async (req, res) => {
 
     const order = Array.isArray(data) ? data[0] : data;
 
-    return res.json({ 
-      message: 'Order created', 
+    return res.json({
+      message: 'Order created',
       order,
       invoice_id
     });
@@ -102,14 +103,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 💳 PAYMENT SUCCESS
+// 💳 PAYMENT SUCCESS (FIXED - NO DUPLICATE EMAILS)
 router.put('/:id/payment-success', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    const { data: order, error } = await supabase
       .from('orders')
-      .update({ payment_status: 'paid' })
+      .update({ payment_status: 'paid', status: 'paid' })
       .eq('id', id)
       .select()
       .maybeSingle();
@@ -118,22 +119,27 @@ router.put('/:id/payment-success', async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    const order = data;
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
 
-    if (order?.email) {
-      try {
-        await sendEmail(
-          order.email,
-          'Payment Confirmed - Velra',
-          `Hi ${order.name},\n\nYour payment has been confirmed 🎉\n\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || 'N/A'}\n\n🛒 Items Purchased:\n${Array.isArray(order.items) && order.items.length
-  ? order.items
-      .map(i => `- ${i?.name || "Item"} x${i?.qty || 1}`)
-      .join("\n")
-  : "No items available"}\n\nWe are processing your order.`
-        );
-      } catch (err) {
-        console.log('❌ PAYMENT EMAIL ERROR:', err.message);
-      }
+    // prevent duplicate email
+    if (order.email && order.payment_status === 'paid') {
+      const items = typeof order.items === 'string'
+        ? JSON.parse(order.items)
+        : Array.isArray(order.items)
+        ? order.items
+        : [];
+
+      const productList = items.length
+        ? items.map(i => `- ${i?.name || 'Item'} x${i?.qty || 1}`).join('\n')
+        : 'No items available';
+
+      await sendEmail(
+        order.email,
+        'Payment Confirmed - Velra',
+        `Hi ${order.name},\n\nYour payment has been confirmed 🎉\n\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || 'N/A'}\n\n🛒 Items:\n${productList}\n\nThank you for trusting Velra.`
+      );
     }
 
     return res.json({ message: 'Payment updated', order });
@@ -143,13 +149,12 @@ router.put('/:id/payment-success', async (req, res) => {
   }
 });
 
-// ✏️ UPDATE ORDER STATUS
+// ✏️ UPDATE ORDER STATUS (FIXED)
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, payment_status, payment_ref } = req.body;
 
-    // Build dynamic update object
     const updateData = {};
 
     if (status !== undefined) updateData.status = status;
@@ -169,15 +174,11 @@ router.put('/:id', async (req, res) => {
     const order = Array.isArray(data) ? data[0] : data;
 
     if (order?.email) {
-      try {
-        await sendEmail(
-          order.email,
-          'Order Update - Velra',
-          `Hi ${order.name},\n\nYour order status is now: ${status}`
-        );
-      } catch (err) {
-        console.log('❌ STATUS EMAIL ERROR:', err.message);
-      }
+      await sendEmail(
+        order.email,
+        'Order Update - Velra',
+        `Hi ${order.name},\n\nYour order status is now: ${status || 'updated'}`
+      );
     }
 
     return res.json({ message: 'Order updated', order });

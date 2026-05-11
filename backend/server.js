@@ -56,6 +56,7 @@ console.log("📦 Backend initializing...");
 // =========================
 app.use("/orders", orderRoutes);
 app.use("/paystack", paystackRoutes);
+app.use("/crypto", require("./routes/cryptoWebhook"));
 
 // =========================
 // WEBHOOK TEST ROUTE (DEBUG)
@@ -202,7 +203,7 @@ app.post("/crypto/init", async (req, res) => {
       {
         price_amount: req.body.amount,
         price_currency: "usd",
-        pay_currency: "usdttrc20",
+        pay_currency: req.body.pay_currency || "usdttrc20",
         order_id: req.body.order_id,
         order_description: "Order payment",
       },
@@ -222,46 +223,7 @@ app.post("/crypto/init", async (req, res) => {
 // =========================
 // CRYPTO WEBHOOK
 // =========================
-app.post("/crypto/webhook", async (req, res) => {
-  try {
-    const event = req.body;
-
-    console.log("💰 CRYPTO WEBHOOK HIT");
-
-    if (["finished", "confirmed", "completed"].includes(event.payment_status)) {
-      await supabase
-        .from("orders")
-        .update({ payment_status: "paid" })
-        .eq("id", event.order_id);
-
-      const { data } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", event.order_id)
-        .maybeSingle();
-
-      if (data?.email) {
-        await sendEmail(
-          data.email,
-          "Payment Successful",
-          "Your crypto payment is confirmed 🎉"
-        );
-      }
-
-      await logWebhook({
-        source: "crypto",
-        event: "payment_success",
-        status: "success",
-        payload: event,
-      });
-    }
-
-    res.sendStatus(200);
-  } catch (err) {
-    console.log("CRYPTO WEBHOOK ERROR:", err.message);
-    res.sendStatus(200);
-  }
-});
+// 🪙 Crypto webhook moved to routes/crypto.js
 
 // =========================
 // START SERVER
