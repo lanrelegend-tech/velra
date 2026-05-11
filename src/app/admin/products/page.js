@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../../../lib/supabase";
 import Link from "next/link";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -37,18 +36,15 @@ export default function AdminProducts() {
   const fetchProducts = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("id", { ascending: false });
+    try {
+      const res = await fetch("http://localhost:3001/products");
+      const data = await res.json();
 
-    if (error) {
-      console.log("Fetch error:", error.message);
-      setLoading(false);
-      return;
+      setProducts(data || []);
+    } catch (err) {
+      console.log("Fetch error:", err.message);
     }
 
-    setProducts(data || []);
     setLoading(false);
   };
 
@@ -115,33 +111,36 @@ export default function AdminProducts() {
       image: finalImage,
     };
 
-    if (editing?.id) {
-      const { error } = await supabase
-        .from("products")
-        .update(payload)
-        .eq("id", editing.id);
+    try {
+      const method = editing?.id ? "PUT" : "POST";
+      const url = editing?.id
+        ? `http://localhost:3001/products/${editing.id}`
+        : "http://localhost:3001/products";
 
-      if (error) {
-        console.log("Update error:", error.message);
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok || result?.error) {
+        console.log("Save error:", result);
+        openModal(result?.error || "Failed to save product ❌", "error");
         return;
       }
 
-      openModal("Product Updated ✅");
-    } else {
-      const { error } = await supabase
-        .from("products")
-        .insert([payload]);
-
-      if (error) {
-        console.log("Insert error:", error.message);
-        return;
-      }
-
-      openModal("Product Added ✅");
+      openModal(editing ? "Product Updated ✅" : "Product Added ✅");
+    } catch (err) {
+      console.log("Save error:", err.message);
     }
 
     resetForm();
-    fetchProducts();
+    await fetchProducts();
+    setProducts((prev) => [...prev]);
   };
 
   // EDIT PRODUCT
@@ -167,19 +166,24 @@ export default function AdminProducts() {
   const deleteProduct = async () => {
     if (!deleteId) return;
 
-    const { error } = await supabase
-      .from("products")
-      .delete()
-      .eq("id", deleteId);
+    try {
+      const res = await fetch(`http://localhost:3001/products/${deleteId}`, {
+        method: "DELETE",
+      });
 
-    if (error) {
-      console.log("Delete error:", error.message);
-      return;
+      const result = await res.json();
+
+      if (!res.ok) {
+        console.log("Delete error:", result.error);
+        return;
+      }
+
+      setDeleteId(null);
+      fetchProducts();
+      openModal("Product deleted 🗑️");
+    } catch (err) {
+      console.log("Delete error:", err.message);
     }
-
-    setDeleteId(null);
-    fetchProducts();
-    openModal("Product deleted 🗑️");
   };
 
   const filtered = products.filter((p) =>

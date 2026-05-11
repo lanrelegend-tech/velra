@@ -15,18 +15,17 @@ export default function DashboardOverview() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const { supabase } = await import("../../../../lib/supabase");
+      const res = await fetch("http://localhost:3001/orders");
+      const data = await res.json();
 
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
+      if (!res.ok) throw new Error(data.error || "Failed to fetch orders");
 
-      if (error) throw new Error(error.message);
       return data || [];
     },
     staleTime: 0,
     refetchOnWindowFocus: true,
+    refetchInterval: 5000, // 🔥 auto refresh every 5 seconds
+    refetchIntervalInBackground: true,
   });
 
   const safeOrders = orders || [];
@@ -36,7 +35,7 @@ export default function DashboardOverview() {
 
   const totalRevenue = useMemo(() => {
     return safeOrders.reduce((sum, order) => {
-      return sum + Number(order.total || 0);
+      return sum + Number(order.total_price || 0);
     }, 0);
   }, [safeOrders]);
 
@@ -62,21 +61,54 @@ export default function DashboardOverview() {
       ? 0
       : Math.round(totalRevenue / totalOrders);
 
+  // 📊 PAYMENT ANALYTICS
+  const paidOrders = safeOrders.filter(
+    (o) => o.payment_status === "paid"
+  ).length;
+
+  const unpaidOrders = safeOrders.filter(
+    (o) => o.payment_status !== "paid"
+  ).length;
+
+  const cryptoOrders = safeOrders.filter(
+    (o) => o.payment_method === "crypto"
+  ).length;
+
+  const cardOrders = safeOrders.filter(
+    (o) => o.payment_method === "card"
+  ).length;
+
+  // 💰 Revenue split
+  const cryptoRevenue = safeOrders
+    .filter((o) => o.payment_method === "crypto" && o.payment_status === "paid")
+    .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+
+  const cardRevenue = safeOrders
+    .filter((o) => o.payment_method === "card" && o.payment_status === "paid")
+    .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+
   // 🔥 UPDATE STATUS
   async function updateOrderStatus(id, status) {
-    const { supabase } = await import("../../../../lib/supabase");
+    try {
+      const res = await fetch(`http://localhost:3001/orders/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
 
-    const { error } = await supabase
-      .from("orders")
-      .update({ status })
-      .eq("id", id);
+      const result = await res.json();
 
-    if (error) {
-      alert(error.message);
-      return;
+      if (!res.ok) {
+        alert(result.error || "Failed to update status");
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    } catch (err) {
+      alert(err.message);
     }
-
-    queryClient.invalidateQueries({ queryKey: ["orders"] });
   }
 
     return (
@@ -123,27 +155,61 @@ export default function DashboardOverview() {
       </div>
 
       {/* STATS */}
-      <div className="grid md:grid-cols-3 gap-4 mb-8">
-        <div className="p-5 border rounded-xl bg-white hover:shadow-sm transition">
-          <p className="text-xs text-gray-500">Total Orders</p>
-          <p className="text-2xl font-semibold text-blue-600">{totalOrders}</p>
-        </div>
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-xs text-gray-500">Total Orders</p>
+    <p className="text-2xl font-semibold text-blue-600">{totalOrders}</p>
+  </div>
 
-        <div className="p-5 border rounded-xl bg-white hover:shadow-sm transition">
-          <p className="text-xs text-gray-500">Revenue</p>
-          <p className="text-2xl font-semibold text-green-600">${totalRevenue.toLocaleString()}</p>
-        </div>
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-xs text-gray-500">Paid Orders</p>
+    <p className="text-2xl font-semibold text-green-600">{paidOrders}</p>
+  </div>
 
-        <div className="p-5 border rounded-xl bg-white hover:shadow-sm transition">
-          <p className="text-xs text-gray-500">Customers</p>
-          <p className="text-2xl font-semibold text-purple-600">{totalCustomers}</p>
-        </div>
-      </div>
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-xs text-gray-500">Unpaid Orders</p>
+    <p className="text-2xl font-semibold text-red-500">{unpaidOrders}</p>
+  </div>
+
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-xs text-gray-500">Crypto Orders</p>
+    <p className="text-2xl font-semibold text-purple-600">{cryptoOrders}</p>
+  </div>
+
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-xs text-gray-500">Card Orders</p>
+    <p className="text-2xl font-semibold text-indigo-600">{cardOrders}</p>
+  </div>
+
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-xs text-gray-500">Revenue</p>
+    <p className="text-2xl font-semibold text-green-600">
+      ${totalRevenue.toLocaleString()}
+    </p>
+  </div>
+</div>
 
       {/* CHART */}
       <div className="p-5 border rounded-xl bg-white">
         <MonthlySalesChart orders={safeOrders} />
       </div>
+
+      {/* REVENUE BREAKDOWN */}
+      <div className="grid md:grid-cols-2 gap-4">
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-sm text-gray-500">Crypto Revenue</p>
+    <p className="text-2xl font-semibold text-purple-600">
+      ${cryptoRevenue.toLocaleString()}
+    </p>
+  </div>
+
+  <div className="p-5 border rounded-xl bg-white">
+    <p className="text-sm text-gray-500">Card Revenue</p>
+    <p className="text-2xl font-semibold text-blue-600">
+      ${cardRevenue.toLocaleString()}
+    </p>
+  </div>
+</div>
 
       {/* TABLE */}
       <div className="p-5 border rounded-xl bg-white">
@@ -157,6 +223,7 @@ export default function DashboardOverview() {
                 <th className="py-3 text-left">Total</th>
                 <th className="py-3 text-left">Status</th>
                 <th className="py-3 text-left">Address</th>
+                <th className="py-3 text-left">Payment</th>
                 <th className="py-3 text-left">Action</th>
               </tr>
             </thead>
@@ -171,6 +238,7 @@ export default function DashboardOverview() {
                     <td className="py-3 px-2"><Skeleton width={60} height={10} /></td>
                     <td className="py-3 px-2"><Skeleton width={120} height={10} /></td>
                     <td className="py-3 px-2"><Skeleton width={80} height={10} /></td>
+                    <td className="py-3 px-2"><Skeleton width={80} height={10} /></td>
                   </tr>
 
                   {/* ROW SKELETONS */}
@@ -181,12 +249,13 @@ export default function DashboardOverview() {
                       <td className="py-4 px-2"><Skeleton width={70} height={10} /></td>
                       <td className="py-4 px-2"><Skeleton width={160} height={10} /></td>
                       <td className="py-4 px-2"><Skeleton width={90} height={10} /></td>
+                      <td className="py-4 px-2"><Skeleton width={90} height={10} /></td>
                     </tr>
                   ))}
                 </>
               ) : safeOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4">
+                  <td colSpan={6} className="text-center py-4">
                     No orders found
                   </td>
                 </tr>
@@ -194,18 +263,41 @@ export default function DashboardOverview() {
                 safeOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50 transition">
                     <td className="py-4 px-2">{order.email}</td>
-                    <td className="py-4 px-2">${Number(order.total || 0).toLocaleString()}</td>
+                    <td className="py-4 px-2">${Number(order.total_price || 0).toLocaleString()}</td>
                     <td className="py-4 px-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        order.status === "delivered"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}>
-                        {order.status || "pending"}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          order.status === "delivered"
+                            ? "bg-green-100 text-green-700"
+                            : order.status === "shipped"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}>
+                          {order.status || "pending"}
+                        </span>
+
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          order.payment_status === "paid"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}>
+                          {order.payment_status || "unpaid"}
+                        </span>
+                      </div>
                     </td>
                     <td className="py-4 px-2">
                       {order.address || order.shipping_address || order.customer_address || "No address"}
+                    </td>
+                    <td className="py-4 px-2 text-xs">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+  order.payment_method === "crypto"
+    ? "bg-purple-100 text-purple-700"
+    : order.payment_method === "card"
+    ? "bg-blue-100 text-blue-700"
+    : "bg-gray-100 text-gray-600"
+}`}>
+  {order.payment_method || "unknown"}
+</span>
                     </td>
                     <td className="py-4 px-2 flex gap-3">
                       <button

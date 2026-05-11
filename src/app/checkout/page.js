@@ -1,6 +1,5 @@
 "use client";
 
-import { saveOrder } from "../../../lib/saveOrders";// ✅ FIXED NAME
 import { supabase } from "../../../lib/supabase";
 
 import { useCart } from "../context/CartContext";
@@ -19,6 +18,11 @@ function CheckoutPage() {
   const [paystackReady, setPaystackReady] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState("idle");
+  const [paymentData, setPaymentData] = useState(null);
+  const [error, setError] = useState("");
 
   // ✅ LOAD USER DATA FROM CUSTOMERS TABLE
   useEffect(() => {
@@ -90,6 +94,70 @@ function CheckoutPage() {
     return sum + item.price * item.qty;
   }, 0);
 
+  // 💳 CRYPTO PAYMENT (NOWPAYMENTS)
+  const handleCryptoPayment = async () => {
+    setLoading(true);
+    setStep("creating_order");
+    openModal("Preparing crypto payment...");
+    setError("");
+
+    if (!name || !address || !phone || !email) {
+      setLoading(false);
+      openModal("Fill all fields");
+      return;
+    }
+
+    try {
+      setStep("creating_invoice");
+      const res = await fetch("http://localhost:3001/crypto/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          address,
+          amount: total,
+          payment_method: "crypto"
+        }),
+      });
+
+      const data = await res.json();
+
+      console.log("CRYPTO RESPONSE:", data);
+
+      const paymentUrl =
+        data?.payment?.invoice_url ||
+        data?.payment?.payment_url ||
+        data?.payment?.url;
+
+      if (!paymentUrl) {
+        setError("Crypto payment failed");
+        setStep("idle");
+        openModal("Crypto payment failed");
+        setLoading(false);
+        return;
+      }
+
+      setPaymentData(data?.payment);
+      setStep("redirecting");
+      setLoading(false);
+      openModal("Redirecting to payment...");
+      setTimeout(() => {
+        window.location.href = paymentUrl;
+      }, 800);
+
+    } catch (err) {
+      console.log(err);
+      setError("Crypto payment error");
+      setStep("idle");
+      setLoading(false);
+      openModal("Crypto payment error");
+    }
+  };
+
   // ✅ PAYMENT FUNCTION
   const handlePayment = () => {
     if (!name || !address || !phone || !email) {
@@ -131,20 +199,32 @@ function CheckoutPage() {
       items: cart,
       total,
       payment_ref: response.reference,
-      status: "paid",
+      status: "pending",
+      payment_status: "unpaid",
+      payment_method: "card",
     };
 
-    const saved = await saveOrder(orderData);
+    // 📡 Send order to backend (this triggers email + Supabase save)
+    const res = await fetch("http://localhost:3001/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(orderData),
+    });
 
-    console.log("Saved order:", saved);
+    const saved = await res.json();
 
-    if (!saved) {
+    console.log("Saved order raw response:", saved);
+
+    if (!res.ok) {
       openModal("Order failed to save");
       return;
     }
 
+    // ✅ Webhook will handle payment confirmation + email
     clearCart();
-    router.push("/order");
+    router.push("/order/success");
   })();
 },
 
@@ -154,6 +234,17 @@ function CheckoutPage() {
     });
 
     handler.openIframe();
+  };
+
+  const retryPayment = () => {
+    setError("");
+    setStep("idle");
+
+    if (paymentMethod === "crypto") {
+      handleCryptoPayment();
+    } else {
+      handlePayment();
+    }
   };
 
   return (
@@ -200,6 +291,47 @@ function CheckoutPage() {
       {/* RIGHT */}
       <div className="w-full md:w-[400px] border p-5 h-fit">
 
+        <div className="mb-4">
+          <p className="text-sm font-medium mb-2">Select Payment Method</p>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setPaymentMethod("card")}
+              className={`px-3 py-1 border ${
+                paymentMethod === "card" ? "bg-black text-white" : ""
+              }`}
+            >
+              Card (Paystack)
+            </button>
+
+            <button
+              onClick={() => setPaymentMethod("crypto")}
+              className={`px-3 py-1 border ${
+                paymentMethod === "crypto" ? "bg-black text-white" : ""
+              }`}
+            >
+              Crypto (USDT)
+            </button>
+          </div>
+        </div>
+
+        {step !== "idle" && (
+          <div className="mb-3 text-sm text-blue-600 font-medium">
+            {step === "creating_order" && "Creating order..."}
+            {step === "creating_invoice" && "Creating payment invoice..."}
+            {step === "redirecting" && "Redirecting to payment..."}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-3 text-sm text-red-600 font-medium flex justify-between items-center">
+            <span>{error}</span>
+            <button onClick={retryPayment} className="underline text-black">
+              Retry
+            </button>
+          </div>
+        )}
+
         <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
 
         <div className="space-y-3 max-h-[300px] overflow-y-auto">
@@ -219,16 +351,33 @@ function CheckoutPage() {
 
         </div>
 
+        {paymentMethod === "crypto" && paymentData && (
+          <div className="border p-3 mb-3 text-xs bg-gray-50">
+            <p className="font-semibold mb-1">Crypto Payment Details</p>
+            <p>Amount: {paymentData?.pay_amount}</p>
+            <p>Currency: {paymentData?.pay_currency}</p>
+            <p className="break-all">Address: {paymentData?.pay_address}</p>
+            <p className="break-all">Invoice: {paymentData?.invoice_url}</p>
+          </div>
+        )}
+
+        <div className="mt-4 text-sm text-gray-600">
+          Paying with: <span className="font-semibold capitalize">{paymentMethod}</span>
+        </div>
+
         <div className="flex justify-between font-semibold mt-5 border-t pt-3">
           <p>Total</p>
           <p>${total.toLocaleString()}</p>
         </div>
 
         <button
-          onClick={handlePayment}
-          className="w-full bg-black text-white py-3 mt-5 hover:opacity-80 transition"
+          disabled={loading || cart.length === 0}
+          onClick={paymentMethod === "card" ? handlePayment : handleCryptoPayment}
+          className={`w-full bg-black text-white py-3 mt-5 transition ${
+            loading ? "opacity-50 cursor-not-allowed" : "hover:opacity-80"
+          }`}
         >
-          Pay Now
+          {loading ? "Processing..." : paymentMethod === "card" ? "Pay with Card" : "Pay with Crypto"}
         </button>
 
       </div>

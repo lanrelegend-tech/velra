@@ -69,6 +69,25 @@ export default function SignupPage() {
 
     console.log("Signup success:", data);
 
+    // 📧 Trigger backend welcome email
+    try {
+      await fetch('http://localhost:3001/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: fullName,
+          email: form.email,
+          phone: '',
+          address: 'Account Signup',
+          status: 'pending'
+        })
+      });
+    } catch (err) {
+      console.log('Welcome email trigger failed:', err.message);
+    }
+
     openModal("Account created successfully ✅");
 
     await new Promise((res) => setTimeout(res, 1200));
