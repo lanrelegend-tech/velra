@@ -598,6 +598,8 @@ app.post('/crypto/create-checkout', async (req, res) => {
   }
 });
 
-app.listen(3001, () => {
-  console.log('🚀 Server running on port 3001 (ACTIVE FILE)');
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT} (ACTIVE FILE)`);
 });
