@@ -1,197 +1,166 @@
-const express = require('express');
-const crypto = require('crypto');
+const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
-const nodemailer = require('nodemailer');
+const { createClient } = require("@supabase/supabase-js");
+const nodemailer = require("nodemailer");
 
+// =========================
+// SUPABASE
+// =========================
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// =========================
+// EMAIL TRANSPORT
+// =========================
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  }
+    pass: process.env.GMAIL_PASS,
+  },
 });
 
-const sendEmail = async (to, subject, text, retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      await transporter.sendMail({
-        from: process.env.GMAIL_USER,
-        to,
-        subject,
-        text
-      });
-
-      console.log("📧 EMAIL SENT SUCCESSFULLY:", to);
-      return true;
-
-    } catch (err) {
-      console.log(`❌ Email attempt ${i + 1} failed:`, err.message);
-
-      if (i === retries - 1) {
-        console.log("🚨 Email permanently failed:", to);
-        throw err;
-      }
-    }
-  }
-};
-
-const logWebhook = async ({ source, event, status, payload, error = null }) => {
+// =========================
+// EMAIL SENDER (SAFE)
+// =========================
+const sendEmail = async (to, subject, text) => {
   try {
-    await supabase.from('webhook_logs').insert([
-      {
-        source,
-        event,
-        status,
-        payload,
-        error
-      }
-    ]);
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to,
+      subject,
+      text,
+    });
 
-    console.log("🪵 WEBHOOK LOGGED:", source, event);
+    console.log("📧 EMAIL SENT:", to);
   } catch (err) {
-    console.log("❌ WEBHOOK LOG ERROR:", err.message);
+    console.log("❌ EMAIL FAILED:", err.message);
   }
 };
 
+// =========================
+// WEBHOOK LOGGER
+// =========================
+const logWebhook = async (data) => {
+  try {
+    await supabase.from("webhook_logs").insert([data]);
+  } catch (err) {
+    console.log("❌ LOG ERROR:", err.message);
+  }
+};
+
+// =========================
+// PAYSTACK SIGNATURE VERIFY
+// IMPORTANT FIX: use rawBody fallback
+// =========================
 const verifyPaystack = (req) => {
   const secret = process.env.PAYSTACK_SECRET_KEY;
 
-  const payload = req.rawBody
-    ? req.rawBody
-    : typeof req.body === 'string'
-      ? req.body
+  const payload =
+    typeof req.rawBody === "string"
+      ? req.rawBody
       : JSON.stringify(req.body);
 
   const hash = crypto
-    .createHmac('sha512', secret)
+    .createHmac("sha512", secret)
     .update(payload)
-    .digest('hex');
+    .digest("hex");
 
-  return hash === req.headers['x-paystack-signature'];
+  return hash === req.headers["x-paystack-signature"];
 };
 
-// 💳 PAYSTACK + CRYPTO UNIFIED WEBHOOK
-router.post('/', async (req, res) => {
+// =========================
+// WEBHOOK ROUTE
+// =========================
+router.post("/", async (req, res) => {
   try {
     const body = req.body;
 
-    console.log("🔥 WEBHOOK ROUTE HIT");
-    console.log("📩 HEADERS:", req.headers);
-    console.log("📦 BODY RECEIVED:", body);
+    console.log("🔥 WEBHOOK HIT");
+    console.log("📩 EVENT:", body?.event);
 
-    console.log("📩 WEBHOOK RECEIVED:", body);
+    // ALWAYS VERIFY FIRST
+    const valid = verifyPaystack(req);
+    console.log("🔐 SIGNATURE:", valid);
 
-    const eventType = body.event;
-    console.log("⚡ PAYSTACK EVENT TYPE:", eventType);
+    if (!valid) {
+      await logWebhook({
+        source: "paystack",
+        event: "invalid_signature",
+        status: "failed",
+        payload: body,
+      });
 
-    // 💳 PAYSTACK EVENTS HANDLER
-    if (eventType === "charge.success" || eventType === "charge.failed" || eventType === "charge.abandoned") {
+      return res.sendStatus(200);
+    }
 
-      const isValidSignature = verifyPaystack(req);
-      console.log("🔐 PAYSTACK SIGNATURE VALID:", isValidSignature);
+    const event = body?.event;
 
-      if (!isValidSignature) {
-        console.log("❌ INVALID PAYSTACK SIGNATURE");
-
-        await logWebhook({
-          source: "paystack",
-          event: "invalid_signature",
-          status: "failed",
-          payload: body
-        });
-
-        return res.sendStatus(401);
-      }
-
-      // =========================
-      // ❌ FAILED PAYMENT
-      // =========================
-      if (eventType === "charge.failed") {
-        console.log("❌ PAYMENT FAILED EVENT");
-
-        await logWebhook({
-          source: "paystack",
-          event: "charge.failed",
-          status: "failed",
-          payload: body
-        });
-
-        return res.sendStatus(200);
-      }
-
-      // =========================
-      // ⏳ ABANDONED PAYMENT
-      // =========================
-      if (eventType === "charge.abandoned") {
-        console.log("⏳ PAYMENT ABANDONED EVENT");
-
-        await logWebhook({
-          source: "paystack",
-          event: "charge.abandoned",
-          status: "failed",
-          payload: body
-        });
-
-        return res.sendStatus(200);
-      }
-
-      // =========================
-      // ✅ SUCCESS PAYMENT ONLY
-      // =========================
-      const invoice_id = body.data?.metadata?.invoice_id;
-      const reference = body.data.reference;
-
-      console.log("🧾 PAYSTACK INVOICE ID:", invoice_id);
-      console.log("🔁 PAYSTACK REFERENCE:", reference);
-
-      if (!invoice_id && !reference) {
-        await logWebhook({
-          source: "paystack",
-          event: "missing_invoice",
-          status: "failed",
-          payload: body
-        });
-
-        return res.sendStatus(200);
-      }
+    // =========================
+    // FAILED PAYMENT
+    // =========================
+    if (event === "charge.failed") {
+      console.log("❌ PAYMENT FAILED");
 
       await logWebhook({
         source: "paystack",
-        event: "charge.success",
-        status: "success",
-        payload: body
+        event,
+        status: "failed",
+        payload: body,
       });
 
-      // 🧾 SAFE ORDER RESOLUTION (invoice-first)
+      return res.sendStatus(200);
+    }
+
+    // =========================
+    // ABANDONED PAYMENT
+    // =========================
+    if (event === "charge.abandoned") {
+      console.log("⏳ PAYMENT ABANDONED");
+
+      await logWebhook({
+        source: "paystack",
+        event,
+        status: "failed",
+        payload: body,
+      });
+
+      return res.sendStatus(200);
+    }
+
+    // =========================
+    // SUCCESS PAYMENT
+    // =========================
+    if (event === "charge.success") {
+      const invoice_id = body?.data?.metadata?.invoice_id;
+      const reference = body?.data?.reference;
+
+      console.log("🧾 INVOICE:", invoice_id);
+      console.log("🔁 REF:", reference);
+
       let order = null;
-      console.log("🔍 STARTING ORDER RESOLUTION...");
 
       if (invoice_id) {
-        const resOrder = await supabase
+        const res1 = await supabase
           .from("orders")
           .select("*")
           .eq("invoice_id", invoice_id)
-          .single();
+          .maybeSingle();
 
-        order = resOrder.data;
-        console.log("✅ ORDER FOUND (INVOICE):", order);
+        order = res1.data;
       }
 
       if (!order && reference) {
-        const resOrder = await supabase
+        const res2 = await supabase
           .from("orders")
           .select("*")
           .eq("payment_ref", reference)
-          .single();
+          .maybeSingle();
 
-        order = resOrder.data;
-        console.log("✅ ORDER FOUND (REFERENCE):", order);
+        order = res2.data;
       }
 
       if (!order) {
@@ -199,103 +168,57 @@ router.post('/', async (req, res) => {
 
         await logWebhook({
           source: "paystack",
-          event: "order_not_found",
+          event,
           status: "failed",
-          payload: body
+          payload: body,
         });
 
         return res.sendStatus(200);
       }
 
+      // UPDATE ORDER
       await supabase
         .from("orders")
         .update({
           payment_status: "paid",
-          payment_method: "card"
+          payment_method: "card",
         })
         .eq("id", order.id);
 
-      if (order?.email) {
-        console.log("📧 PREPARING EMAIL FOR:", order.email);
+      console.log("✅ ORDER UPDATED");
 
-        try {
-          await sendEmail(
-            order.email,
-            "Payment Confirmed 🎉",
-            `Hi ${order.name},\n\nYour payment is confirmed 🎉\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || invoice_id || "N/A"}`
-          );
+      // SEND EMAIL
+      if (order.email) {
+        console.log("📧 SENDING EMAIL TO:", order.email);
 
-          console.log("📬 EMAIL SENT CONFIRMED FOR ORDER:", order.id);
-
-        } catch (err) {
-          console.log("❌ EMAIL FAILED:", err.message);
-        }
-      }
-    }
-
-    // =========================
-    // 🪙 CRYPTO
-    // =========================
-    if (
-      body.payment_status === "finished" ||
-      body.payment_status === "confirmed"
-    ) {
-      const order_id = body.order_id || body.invoice_id;
-
-      const { data: order } = await supabase
-        .from("orders")
-        .update({
-          payment_status: "paid",
-          payment_method: "crypto"
-        })
-        .eq("id", order_id)
-        .select()
-        .single();
-
-      if (!order) {
-        console.log("❌ CRYPTO ORDER NOT FOUND");
-        return res.sendStatus(200);
-      }
-
-      try {
         await sendEmail(
           order.email,
-          "Crypto Payment Confirmed 🎉",
-          `Hi ${order.name}, your crypto payment is confirmed.`
+          "Payment Successful 🎉",
+          `Hi ${order.name}, your payment is confirmed. Order ID: ${order.id}`
         );
-
-        await logWebhook({
-          source: "crypto",
-          event: "email_sent",
-          status: "success",
-          payload: order
-        });
-
-      } catch (err) {
-        await logWebhook({
-          source: "crypto",
-          event: "email_failed",
-          status: "failed",
-          payload: body,
-          error: err.message
-        });
       }
+
+      await logWebhook({
+        source: "paystack",
+        event,
+        status: "success",
+        payload: body,
+      });
     }
 
-    res.sendStatus(200);
-
+    return res.sendStatus(200);
   } catch (err) {
     console.log("WEBHOOK ERROR:", err.message);
 
-    await supabase.from("webhook_logs").insert({
+    await logWebhook({
       source: "system",
-      event: "webhook_error",
+      event: "error",
       status: "failed",
       error: err.message,
-      payload: req.body
+      payload: req.body,
     });
 
-    res.sendStatus(500);
+    return res.sendStatus(200);
   }
 });
 

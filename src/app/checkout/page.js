@@ -109,7 +109,7 @@ function CheckoutPage() {
 
     try {
       setStep("creating_invoice");
-      const res = await fetch("http://localhost:3001/crypto/create-checkout", {
+      const res = await fetch("https://velra-1.onrender.com/crypto/create-checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -205,7 +205,7 @@ function CheckoutPage() {
     };
 
     // 📡 Send order to backend (this triggers email + Supabase save)
-    const res = await fetch("http://localhost:3001/orders", {
+    const res = await fetch("https://velra-1.onrender.com/orders", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -27,7 +27,8 @@ const sendEmail = async (to, subject, text) => {
       text
     });
   } catch (err) {
-    console.log('❌ EMAIL ERROR:', err);
+    console.log('❌ EMAIL ERROR:', err.message);
+    console.log('❌ EMAIL FAILED TO:', to);
   }
 };
 
@@ -101,7 +102,7 @@ router.put('/:id/payment-success', async (req, res) => {
       .update({ payment_status: 'paid' })
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return res.status(400).json({ error: error.message });
@@ -115,8 +116,10 @@ router.put('/:id/payment-success', async (req, res) => {
           order.email,
           'Payment Confirmed - Velra',
           `Hi ${order.name},\n\nYour payment has been confirmed 🎉\n\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || 'N/A'}\n\n🛒 Items Purchased:\n${Array.isArray(order.items) && order.items.length
-            ? order.items.map(i => `- ${i.name} x${i.qty || 1}`).join('\n')
-            : 'No items available'}\n\nWe are processing your order.`
+  ? order.items
+      .map(i => `- ${i?.name || "Item"} x${i?.qty || 1}`)
+      .join("\n")
+  : "No items available"}\n\nWe are processing your order.`
         );
       } catch (err) {
         console.log('❌ PAYMENT EMAIL ERROR:', err.message);
