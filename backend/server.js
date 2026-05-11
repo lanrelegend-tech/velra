@@ -108,7 +108,10 @@ app.get("/products", async (req, res) => {
   try {
     const { data, error } = await supabase.from("products").select("*");
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      console.log("❌ SUPABASE ERROR (products GET):", error.message);
+      return res.status(400).json({ error: error.message });
+    }
 
     res.json(data);
   } catch (err) {
@@ -123,7 +126,10 @@ app.post("/products", async (req, res) => {
       .insert([req.body])
       .select();
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      console.log("❌ SUPABASE ERROR (products POST):", error.message);
+      return res.status(400).json({ error: error.message });
+    }
 
     res.json(data);
   } catch (err) {
@@ -141,7 +147,10 @@ app.post("/deliveries", async (req, res) => {
       .insert([req.body])
       .select();
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      console.log("❌ SUPABASE ERROR (deliveries):", error.message);
+      return res.status(400).json({ error: error.message });
+    }
 
     res.json(data);
   } catch (err) {
@@ -192,7 +201,7 @@ app.post("/crypto/webhook", async (req, res) => {
 
     console.log("💰 CRYPTO WEBHOOK HIT");
 
-    if (event.payment_status === "finished") {
+    if (["finished", "confirmed", "completed"].includes(event.payment_status)) {
       await supabase
         .from("orders")
         .update({ payment_status: "paid" })
@@ -202,7 +211,7 @@ app.post("/crypto/webhook", async (req, res) => {
         .from("orders")
         .select("*")
         .eq("id", event.order_id)
-        .single();
+        .maybeSingle();
 
       if (data?.email) {
         await sendEmail(

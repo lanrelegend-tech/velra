@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Skeleton from "react-loading-skeleton";
@@ -15,25 +14,19 @@ export default function AdminPage() {
 
   useEffect(() => {
     const checkAccess = async () => {
-      const { data } = await supabase.auth.getUser();
+      try {
+        const res = await fetch("https://velra-1.onrender.com/admin/dashboard");
 
-      if (!data?.user) {
+        if (!res.ok) {
+          router.push("/login");
+          return;
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.log("❌ ADMIN CHECK FAILED:", err.message);
         router.push("/login");
-        return;
       }
-
-      const { data: admin, error } = await supabase
-        .from("admins")
-        .select("*")
-        .eq("user_id", data.user.id)
-        .single();
-
-      if (error || !admin) {
-        router.push("/dashboard");
-        return;
-      }
-
-      setLoading(false);
     };
 
     checkAccess();
