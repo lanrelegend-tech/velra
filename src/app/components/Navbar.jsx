@@ -168,7 +168,10 @@ function Navbar() {
                   cart.map((item, i) => (
                     <div key={i} className="flex gap-3 border p-3">
 
-                      <img src={item.image} className="w-16 h-16 object-contain" />
+                      <img
+                        src={item.image || "/placeholder.png"}
+                        className="w-16 h-16 object-contain"
+                      />
 
                       <div className="flex-1">
                         <h3 className="font-semibold">{item.name}</h3>
@@ -262,7 +265,10 @@ function Navbar() {
                     }}
                     className="flex gap-3 border p-3 cursor-pointer hover:bg-gray-100"
                   >
-                    <img src={item.image} className="w-12 h-12 object-cover" />
+                    <img
+                      src={item.image || "/placeholder.png"}
+                      className="w-12 h-12 object-cover"
+                    />
                     <div>
                       <p className="font-medium">{item.name}</p>
                       <p className="text-xs opacity-70">₦{item.price}</p>

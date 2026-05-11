@@ -9,6 +9,7 @@ function Femaleproduct() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("Featured");
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const options = [
     "Featured",
@@ -18,13 +19,37 @@ function Femaleproduct() {
   ];
 
   useEffect(() => {
-      const load = async () => {
+    const load = async () => {
+      try {
+        setLoading(true);
         const data = await getProducts(["women"]);
-        setProducts(data);
-      };
-  
-      load();
-    }, []);
+        setProducts(data || []);
+      } catch (err) {
+        console.log("❌ Failed to load products:", err.message);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="w-full py-20 text-center">
+        Loading products...
+      </div>
+    );
+  }
+
+  if (!products.length) {
+    return (
+      <div className="w-full py-20 text-center">
+        No products found.
+      </div>
+    );
+  }
 
   return (
     <div className="w-full py-20 px-10 font-sans text-black">
@@ -71,7 +96,7 @@ function Femaleproduct() {
           >
 
             <img
-              src={item.image}
+              src={item.image || "/placeholder.png"}
               alt={item.name}
               className="w-full h-72 object-cover"
             />
