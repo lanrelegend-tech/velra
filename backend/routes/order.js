@@ -1,6 +1,6 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 const router = express.Router();
 
@@ -9,26 +9,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// 📧 Email setup
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (to, subject, text) => {
   try {
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER,
+    const { data, error } = await resend.emails.send({
+      from: 'Velra <onboarding@resend.dev>',
       to,
       subject,
       text
     });
+
+    if (error) {
+      console.log('❌ RESEND ERROR:', error);
+    } else {
+      console.log('📧 EMAIL SENT:', to);
+    }
   } catch (err) {
     console.log('❌ EMAIL ERROR:', err.message);
-    console.log('❌ EMAIL FAILED TO:', to);
   }
 };
 
