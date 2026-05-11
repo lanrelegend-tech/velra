@@ -201,12 +201,18 @@ function CheckoutPage() {
 
     const savedOrder = await orderRes.json();
 
-    if (!orderRes.ok || !savedOrder?.product?.[0]?.id) {
+    console.log("ORDER RESPONSE:", savedOrder);
+
+    // ✅ SAFE ORDER ID EXTRACTION (handles multiple backend response shapes)
+    const orderId =
+      savedOrder?.product?.[0]?.id ||
+      savedOrder?.data?.[0]?.id ||
+      savedOrder?.id;
+
+    if (!orderRes.ok || !orderId) {
       openModal("Failed to create order");
       return;
     }
-
-    const orderId = savedOrder.product[0].id;
 
     const handler = window.PaystackPop.setup({
       key: "pk_test_499eccfecb3ba036608bc11567ea7a641205b940",
