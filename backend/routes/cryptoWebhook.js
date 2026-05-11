@@ -8,7 +8,40 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-const sendEmail = require("../utils/sendEmail");
+let Resend;
+try {
+  Resend = require("resend").Resend;
+} catch (err) {
+  console.log("⚠️ Resend package not available");
+}
+
+const resend = process.env.RESEND_API_KEY && Resend
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+const sendEmail = async (to, subject, text) => {
+  if (!resend) {
+    console.log("⚠️ EMAIL SKIPPED (Resend not configured)");
+    return;
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: "Velra <onboarding@resend.dev>",
+      to,
+      subject,
+      text
+    });
+
+    if (error) {
+      console.log("❌ RESEND ERROR:", error);
+    } else {
+      console.log("📧 EMAIL SENT:", to);
+    }
+  } catch (err) {
+    console.log("❌ EMAIL ERROR:", err.message);
+  }
+};
 
 // NOWPAYMENTS CRYPTO WEBHOOK (FIXED)
 router.post("/", async (req, res) => {
