@@ -218,19 +218,25 @@ function CheckoutPage() {
     console.log("🧾 RAW ORDER RESPONSE:", savedOrder);
 
     // 🧾 FINAL ORDER ID (STRICT - ONLY TRUST BACKEND ORDER UUID)
-    const orderId = savedOrder?.order?.id?.toString()?.trim();
+    const orderId =
+      savedOrder?.order?.id ||
+      savedOrder?.data?.id ||
+      savedOrder?.id ||
+      null;
 
-    console.log("🧾 FINAL ORDER ID:", orderId);
+    const cleanedOrderId = typeof orderId === "string" ? orderId.trim() : orderId;
+
+    console.log("🧾 FINAL ORDER ID:", cleanedOrderId);
 
     console.log("🔥 PAYSTACK METADATA CHECK:", {
-      order_id: orderId,
+      order_id: cleanedOrderId,
       name,
       phone,
       address,
     });
 
     // 🚨 HARD STOP IF INVALID OR MISSING
-    if (!orderId || typeof orderId !== "string") {
+    if (!cleanedOrderId) {
       console.log("❌ INVALID ORDER RESPONSE:", savedOrder);
       openModal("Failed to create order. Try again.");
       return;
@@ -246,7 +252,7 @@ function CheckoutPage() {
         name: name?.toString()?.trim(),
         phone: phone?.toString()?.trim(),
         address: address?.toString()?.trim(),
-        order_id: orderId,
+        order_id: cleanedOrderId,
       },
 
       callback: function (response) {
@@ -254,7 +260,7 @@ function CheckoutPage() {
     console.log("Payment success:", response);
 
     // 🔄 UPDATE ORDER WITH PAYMENT REF
-    await fetch("https://velra-2.onrender.com/orders/" + orderId, {
+    await fetch("https://velra-2.onrender.com/orders/" + cleanedOrderId, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

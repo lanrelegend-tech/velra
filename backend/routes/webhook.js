@@ -134,13 +134,15 @@ router.post("/", async (req, res) => {
       const reference = body?.data?.reference;
 
       // 🔥 STRICT SINGLE SOURCE OF TRUTH: order_id ONLY
-      const orderId = body?.data?.metadata?.order_id;
-
-      console.log("📦 ORDER_ID FROM METADATA:", orderId);
+      const orderId = body?.data?.metadata?.order_id?.toString()?.trim();
+      console.log("🧾 WEBHOOK ORDER_ID FROM METADATA:", orderId);
+      console.log("📦 METADATA DEBUG:", body?.data?.metadata);
 
       let order = null;
+      console.log("🔎 LOOKING UP ORDER IN SUPABASE...");
 
       if (orderId) {
+        console.log("🔍 SUPABASE QUERY BY ORDER_ID:", orderId);
         const { data, error } = await supabase
           .from("orders")
           .select("*")
@@ -157,7 +159,7 @@ router.post("/", async (req, res) => {
       }
 
       if (!order) {
-        console.log("❌ ORDER NOT FOUND (INVALID ORDER_ID)");
+        console.log("❌ ORDER NOT FOUND (CHECK metadata.order_id FORMAT OR DB UUID MATCH)");
 
         await logWebhook({
           source: "paystack",

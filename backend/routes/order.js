@@ -1,6 +1,12 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
-const { Resend } = require('resend');
+let Resend;
+
+try {
+  Resend = require('resend').Resend;
+} catch (err) {
+  console.log('⚠️ Resend package not found. Email service disabled.');
+}
 
 const router = express.Router();
 
@@ -9,9 +15,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY && Resend
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 const sendEmail = async (to, subject, text) => {
+  if (!resend) {
+    console.log('⚠️ EMAIL SKIPPED (Resend not configured)');
+    return;
+  }
   try {
     const { data, error } = await resend.emails.send({
       from: 'Velra <onboarding@resend.dev>',

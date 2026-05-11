@@ -107,7 +107,8 @@ router.post('/', async (req, res) => {
       let order = null;
 
       // 0. ORDER ID LOOKUP (PRIMARY FIX FOR FRONTEND FLOW)
-      const order_id = event?.data?.metadata?.order_id;
+      const order_id = event?.data?.metadata?.order_id?.toString()?.trim();
+      console.log("🧾 WEBHOOK ORDER_ID FROM METADATA:", order_id);
 
       if (order_id) {
         const { data, error } = await supabase
@@ -123,10 +124,13 @@ router.post('/', async (req, res) => {
         if (data) {
           order = data;
         }
+        if (order) {
+          console.log("✅ ORDER FOUND VIA ORDER_ID:", order.id);
+        }
       }
 
       // 1. Invoice lookup
-      if (invoice_id) {
+      if (!order && invoice_id) {
         const { data, error } = await supabase
           .from('orders')
           .select('*')
@@ -156,7 +160,8 @@ router.post('/', async (req, res) => {
       }
 
       if (!order) {
-        console.log('❌ ORDER NOT FOUND');
+        console.log('❌ ORDER NOT FOUND - CHECK metadata.order_id / invoice_id / reference');
+        console.log("📦 METADATA DEBUG:", event?.data?.metadata);
 
         await logWebhook({
           source: 'paystack',
