@@ -13,12 +13,17 @@ const supabase = createClient(
 );
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+if (!process.env.RESEND_API_KEY) {
+  console.log("❌ RESEND_API_KEY missing in environment");
+}
 
 // =========================
-// EMAIL SENDER (SAFE)
+// EMAIL SENDER (PRODUCTION SAFE VERSION)
 // =========================
 const sendEmail = async (to, subject, text) => {
   try {
+    console.log("📤 EMAIL ATTEMPT:", { to, subject });
+
     const { data, error } = await resend.emails.send({
       from: "Velra <onboarding@resend.dev>",
       to,
@@ -28,11 +33,14 @@ const sendEmail = async (to, subject, text) => {
 
     if (error) {
       console.log("❌ RESEND ERROR:", error);
-    } else {
-      console.log("📧 EMAIL SENT:", to);
+      return false;
     }
+
+    console.log("📧 EMAIL SENT SUCCESS:", data);
+    return true;
   } catch (err) {
-    console.log("❌ EMAIL ERROR:", err.message);
+    console.log("❌ EMAIL CRASH:", err.message);
+    return false;
   }
 };
 
@@ -134,19 +142,26 @@ router.post("/", async (req, res) => {
       const reference = body?.data?.reference;
 
       // 🔥 STRICT SINGLE SOURCE OF TRUTH: order_id ONLY
-      const orderId = body?.data?.metadata?.order_id?.toString()?.trim();
-      console.log("🧾 WEBHOOK ORDER_ID FROM METADATA:", orderId);
+      const orderId =
+        body?.data?.metadata?.order_id ||
+        body?.data?.metadata?.orderId ||
+        body?.data?.metadata?.invoice_id ||
+        body?.data?.reference;
+
+      const cleanOrderId = orderId?.toString()?.trim();
+
+      console.log("🧾 WEBHOOK ORDER_ID FROM METADATA:", cleanOrderId);
       console.log("📦 METADATA DEBUG:", body?.data?.metadata);
 
       let order = null;
       console.log("🔎 LOOKING UP ORDER IN SUPABASE...");
 
-      if (orderId) {
-        console.log("🔍 SUPABASE QUERY BY ORDER_ID:", orderId);
+      if (cleanOrderId) {
+        console.log("🔍 SUPABASE QUERY BY ORDER_ID:", cleanOrderId);
         const { data, error } = await supabase
           .from("orders")
           .select("*")
-          .eq("id", orderId)
+          .eq("id", cleanOrderId)
           .maybeSingle();
 
         if (error) {
@@ -159,15 +174,22 @@ router.post("/", async (req, res) => {
       }
 
       if (!order) {
-        console.log("❌ ORDER NOT FOUND (CHECK metadata.order_id FORMAT OR DB UUID MATCH)");
+        console.log("❌ ORDER NOT FOUND");
 
         await logWebhook({
           source: "paystack",
           event,
           status: "failed",
+          reason: "order_not_found",
           payload: body,
         });
 
+        return res.sendStatus(200);
+      }
+
+      // PREVENT DOUBLE PROCESSING
+      if (order.payment_status === "paid") {
+        console.log("⚠️ ORDER ALREADY PROCESSED - SKIPPING DUPLICATE WEBHOOK");
         return res.sendStatus(200);
       }
 
@@ -175,6 +197,7 @@ router.post("/", async (req, res) => {
       await supabase
         .from("orders")
         .update({
+          status: "paid",
           payment_status: "paid",
           payment_method: "card",
         })
@@ -185,12 +208,57 @@ router.post("/", async (req, res) => {
       // SEND EMAIL
       if (order.email) {
         console.log("📧 SENDING EMAIL TO:", order.email);
+let items = [];
+try {
+  items = Array.isArray(order.items)
+    ? order.items
+    : JSON.parse(order.items || "[]");
+} catch (e) {
+  console.log("❌ ERROR PARSING ORDER ITEMS:", e.message);
+  items = [];
+}
 
-        await sendEmail(
-          order.email,
-          "Payment Successful 🎉",
-          `Hi ${order.name}, your payment is confirmed. Order ID: ${order.id}`
-        );
+const productList = items
+  .map((item, i) => {
+    const qty = Number(item.qty || 1);
+    const price = Number(item.price || 0);
+    const total = price * qty;
+
+    return `${i + 1}. ${item.name}\n   Qty: ${qty}\n   Price: ₦${price.toLocaleString()}\n   Total: ₦${total.toLocaleString()}`;
+  })
+  .join("\n\n");
+
+const emailMessage = `
+🎉 PAYMENT CONFIRMED SUCCESSFULLY
+
+Hi ${order.name || "Customer"},
+
+Your payment has been successfully processed.
+
+🧾 ORDER DETAILS
+------------------------
+Order ID: ${order.id}
+
+📦 ITEMS PURCHASED:
+${productList || "No items found"}
+
+💰 TOTAL PAID: ₦${Number(order.total || 0).toLocaleString()}
+
+📍 DELIVERY ADDRESS:
+${order.address || "Not provided"}
+
+📞 PHONE:
+${order.phone || "Not provided"}
+
+🧡 Thank you for shopping with Velra!
+We appreciate your order.
+`;
+
+await sendEmail(
+  order.email,
+  `Payment Successful 🎉 - Order ${order.id}`,
+  emailMessage
+);
       }
 
       await logWebhook({

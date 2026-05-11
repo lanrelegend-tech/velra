@@ -177,6 +177,7 @@ router.post('/', async (req, res) => {
       await supabase
         .from('orders')
         .update({
+          status: 'paid',
           payment_status: 'paid',
           payment_method: 'card'
         })
@@ -186,10 +187,51 @@ router.post('/', async (req, res) => {
 
       // SEND EMAIL
       if (order.email) {
+        let items = [];
+
+        try {
+          items =
+            typeof order.items === "string"
+              ? JSON.parse(order.items)
+              : Array.isArray(order.items)
+              ? order.items
+              : [];
+        } catch (e) {
+          console.log("❌ ITEM PARSE ERROR:", e.message);
+          items = [];
+        }
+
+        const productList = items.length
+          ? items
+              .map(
+                (i, idx) =>
+                  `${idx + 1}. ${i?.name || "Product"} x${i?.qty || 1} - ₦${i?.price || "0"}`
+              )
+              .join("\n")
+          : "No items found";
+
+        const emailMessage = `Hi ${order.name},
+
+Your payment was successful 🎉
+
+🧾 Order ID: ${order.id}
+📦 Order Status: ${order.status || "paid"}
+
+🛍 Products:
+${productList}
+
+💰 Total Amount: ₦${order.total || "N/A"}
+
+🙏 Thanks for trusting Velra. We truly appreciate your order and we are preparing it for delivery.
+
+If you have any questions, feel free to contact us anytime.
+
+— Velra Team`;
+
         await sendEmail(
           order.email,
-          'Payment Confirmed 🎉',
-          `Hi ${order.name},\n\nYour payment is successful.\nOrder ID: ${order.id}\n\nThank you for your order.`
+          "Payment Confirmed 🎉 - Velra",
+          emailMessage
         );
       }
 
