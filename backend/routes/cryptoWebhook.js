@@ -2,7 +2,12 @@ const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
 
-const { supabase } = require("../lib/supabase");
+const { createClient } = require("@supabase/supabase-js");
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 const sendEmail = require("../utils/sendEmail");
 
 // NOWPAYMENTS CRYPTO WEBHOOK (FIXED)
