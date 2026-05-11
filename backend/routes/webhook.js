@@ -62,9 +62,11 @@ const logWebhook = async ({ source, event, status, payload, error = null }) => {
 const verifyPaystack = (req) => {
   const secret = process.env.PAYSTACK_SECRET_KEY;
 
-  const payload = typeof req.body === 'string'
-    ? req.body
-    : JSON.stringify(req.body);
+  const payload = req.rawBody
+    ? req.rawBody
+    : typeof req.body === 'string'
+      ? req.body
+      : JSON.stringify(req.body);
 
   const hash = crypto
     .createHmac('sha512', secret)
@@ -79,15 +81,25 @@ router.post('/', async (req, res) => {
   try {
     const body = req.body;
 
+    console.log("🔥 WEBHOOK ROUTE HIT");
+    console.log("📩 HEADERS:", req.headers);
+    console.log("📦 BODY RECEIVED:", body);
+
     console.log("📩 WEBHOOK RECEIVED:", body);
 
-    // =========================
-    // 💳 PAYSTACK
-    // =========================
-    if (body.event === "charge.success") {
+    const eventType = body.event;
+    console.log("⚡ PAYSTACK EVENT TYPE:", eventType);
 
-      if (!verifyPaystack(req)) {
-        await supabase.from("webhook_logs").insert({
+    // 💳 PAYSTACK EVENTS HANDLER
+    if (eventType === "charge.success" || eventType === "charge.failed" || eventType === "charge.abandoned") {
+
+      const isValidSignature = verifyPaystack(req);
+      console.log("🔐 PAYSTACK SIGNATURE VALID:", isValidSignature);
+
+      if (!isValidSignature) {
+        console.log("❌ INVALID PAYSTACK SIGNATURE");
+
+        await logWebhook({
           source: "paystack",
           event: "invalid_signature",
           status: "failed",
@@ -97,18 +109,53 @@ router.post('/', async (req, res) => {
         return res.sendStatus(401);
       }
 
+      // =========================
+      // ❌ FAILED PAYMENT
+      // =========================
+      if (eventType === "charge.failed") {
+        console.log("❌ PAYMENT FAILED EVENT");
+
+        await logWebhook({
+          source: "paystack",
+          event: "charge.failed",
+          status: "failed",
+          payload: body
+        });
+
+        return res.sendStatus(200);
+      }
+
+      // =========================
+      // ⏳ ABANDONED PAYMENT
+      // =========================
+      if (eventType === "charge.abandoned") {
+        console.log("⏳ PAYMENT ABANDONED EVENT");
+
+        await logWebhook({
+          source: "paystack",
+          event: "charge.abandoned",
+          status: "failed",
+          payload: body
+        });
+
+        return res.sendStatus(200);
+      }
+
+      // =========================
+      // ✅ SUCCESS PAYMENT ONLY
+      // =========================
       const invoice_id = body.data?.metadata?.invoice_id;
       const reference = body.data.reference;
 
       console.log("🧾 PAYSTACK INVOICE ID:", invoice_id);
+      console.log("🔁 PAYSTACK REFERENCE:", reference);
 
       if (!invoice_id && !reference) {
         await logWebhook({
           source: "paystack",
           event: "missing_invoice",
           status: "failed",
-          payload: body,
-          error: "No invoice_id or reference"
+          payload: body
         });
 
         return res.sendStatus(200);
@@ -123,8 +170,8 @@ router.post('/', async (req, res) => {
 
       // 🧾 SAFE ORDER RESOLUTION (invoice-first)
       let order = null;
+      console.log("🔍 STARTING ORDER RESOLUTION...");
 
-      // 1. Try invoice_id first
       if (invoice_id) {
         const resOrder = await supabase
           .from("orders")
@@ -133,9 +180,9 @@ router.post('/', async (req, res) => {
           .single();
 
         order = resOrder.data;
+        console.log("✅ ORDER FOUND (INVOICE):", order);
       }
 
-      // 2. Fallback to Paystack reference
       if (!order && reference) {
         const resOrder = await supabase
           .from("orders")
@@ -144,11 +191,11 @@ router.post('/', async (req, res) => {
           .single();
 
         order = resOrder.data;
+        console.log("✅ ORDER FOUND (REFERENCE):", order);
       }
 
-      // 3. Stop if not found
       if (!order) {
-        console.log("❌ ORDER NOT FOUND:", { invoice_id, reference });
+        console.log("❌ ORDER NOT FOUND");
 
         await logWebhook({
           source: "paystack",
@@ -160,7 +207,6 @@ router.post('/', async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // 4. NOW update safely using ID
       await supabase
         .from("orders")
         .update({
@@ -170,6 +216,8 @@ router.post('/', async (req, res) => {
         .eq("id", order.id);
 
       if (order?.email) {
+        console.log("📧 PREPARING EMAIL FOR:", order.email);
+
         try {
           await sendEmail(
             order.email,
@@ -177,20 +225,10 @@ router.post('/', async (req, res) => {
             `Hi ${order.name},\n\nYour payment is confirmed 🎉\nOrder ID: ${order.id}\nInvoice ID: ${order.invoice_id || invoice_id || "N/A"}`
           );
 
-          await logWebhook({
-            source: "paystack",
-            event: "email_sent",
-            status: "success",
-            payload: order
-          });
+          console.log("📬 EMAIL SENT CONFIRMED FOR ORDER:", order.id);
+
         } catch (err) {
-          await logWebhook({
-            source: "paystack",
-            event: "email_failed",
-            status: "failed",
-            payload: order,
-            error: err.message
-          });
+          console.log("❌ EMAIL FAILED:", err.message);
         }
       }
     }
