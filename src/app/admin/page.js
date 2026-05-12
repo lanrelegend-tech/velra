@@ -14,7 +14,7 @@ export default function AdminPage() {
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const res = await fetch("https://velra-1.onrender.com/admin/dashboard");
+        const res = await fetch("https://velra-2.onrender.com/admin/dashboard");
 
         if (!res.ok) {
           router.push("/login");
