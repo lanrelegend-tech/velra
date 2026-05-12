@@ -16,11 +16,14 @@ const { createClient } = require("@supabase/supabase-js");
 
 const orderRoutes = require("./routes/order");
 const paystackRoutes = require("./routes/paystack");
+const cryptoWebhookRoutes = require("./routes/cryptoWebhook");
+const shippingRoute = require("./routes/shipping");
+const shipbubbleWebhook = require("./routes/shipbubbleWebhook");
 
 const app = express();
 
 // =========================
-// GLOBAL DEBUG LOGGER (IMPORTANT)
+// GLOBAL DEBUG LOGGER
 // =========================
 app.use((req, res, next) => {
   console.log("➡️ REQUEST:", req.method, req.url);
@@ -28,7 +31,7 @@ app.use((req, res, next) => {
 });
 
 // =========================
-// MIDDLEWARE
+// CORS
 // =========================
 app.use(
   cors({
@@ -38,7 +41,9 @@ app.use(
   })
 );
 
-// 🔥 RAW BODY FIX FOR PAYSTACK
+// =========================
+// RAW BODY FIX FOR PAYSTACK
+// =========================
 app.use(
   express.json({
     verify: (req, res, buf) => {
@@ -54,18 +59,29 @@ console.log("📦 Backend initializing...");
 // =========================
 // ROUTES
 // =========================
-app.use("/orders", orderRoutes);
-app.use("/paystack", paystackRoutes);
-app.use("/crypto", require("./routes/cryptoWebhook"));
-const shippingRoute = require("./routes/shipping");
 
+// Orders
+app.use("/orders", orderRoutes);
+app.use("/api/orders", orderRoutes);
+
+// Paystack
+app.use("/paystack", paystackRoutes);
+app.use("/api/paystack", paystackRoutes);
+
+// Crypto
+app.use("/crypto", cryptoWebhookRoutes);
+app.use("/api/crypto", cryptoWebhookRoutes);
+
+// Shipping
+app.use("/shipping-price", shippingRoute);
 app.use("/api/shipping-price", shippingRoute);
-const shipbubbleWebhook = require("./routes/shipbubbleWebhook");
-// 🚚 Shipbubble webhook + API routes (rates, tracking, webhooks)
+
+// Shipbubble
+app.use("/shipbubble", shipbubbleWebhook);
 app.use("/api/shipbubble", shipbubbleWebhook);
 
 // =========================
-// WEBHOOK TEST ROUTE (DEBUG)
+// WEBHOOK TEST ROUTE
 // =========================
 app.get("/webhook-test", (req, res) => {
   console.log("🧪 WEBHOOK TEST HIT");
@@ -88,15 +104,16 @@ const resend = process.env.RESEND_API_KEY && Resend
   : null;
 
 // =========================
-// EMAIL SENDING FUNCTION
+// EMAIL
 // =========================
 const sendEmail = async (to, subject, text) => {
   if (!resend) {
     console.log("⚠️ EMAIL SKIPPED (Resend not configured)");
     return;
   }
+
   try {
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: "Velra <onboarding@resend.dev>",
       to,
       subject,
@@ -121,29 +138,13 @@ app.get("/", (req, res) => {
 });
 
 // =========================
-// SAFE LOGGING
-// =========================
-const logWebhook = async (data) => {
-  try {
-    const { error } = await supabase.from("webhook_logs").insert([data]);
-
-    if (error) {
-      console.log("❌ LOG ERROR:", error.message);
-    }
-  } catch (err) {
-    console.log("❌ LOG EXCEPTION:", err.message);
-  }
-};
-
-// =========================
-// PRODUCTS (SAFE)
+// PRODUCTS
 // =========================
 app.get("/products", async (req, res) => {
   try {
     const { data, error } = await supabase.from("products").select("*");
 
     if (error) {
-      console.log("❌ SUPABASE ERROR (products GET):", error.message);
       return res.status(400).json({ error: error.message });
     }
 
@@ -161,7 +162,6 @@ app.post("/products", async (req, res) => {
       .select();
 
     if (error) {
-      console.log("❌ SUPABASE ERROR (products POST):", error.message);
       return res.status(400).json({ error: error.message });
     }
 
@@ -182,7 +182,6 @@ app.post("/deliveries", async (req, res) => {
       .select();
 
     if (error) {
-      console.log("❌ SUPABASE ERROR (deliveries):", error.message);
       return res.status(400).json({ error: error.message });
     }
 
@@ -193,7 +192,7 @@ app.post("/deliveries", async (req, res) => {
 });
 
 // =========================
-// PAYSTACK INIT (SAFE)
+// PAYSTACK INIT
 // =========================
 app.post("/paystack/init", (req, res) => {
   res.json({ message: "Use frontend Paystack inline checkout" });
@@ -227,12 +226,7 @@ app.post("/crypto/init", async (req, res) => {
 });
 
 // =========================
-// CRYPTO WEBHOOK
-// =========================
-// 🪙 Crypto webhook handled in routes/cryptoWebhook.js
-
-// =========================
-// 404 HANDLER
+// 404
 // =========================
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });

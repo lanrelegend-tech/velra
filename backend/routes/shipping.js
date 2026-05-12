@@ -22,7 +22,7 @@ router.post("/", async (req, res) => {
       {
         method: "POST",
         headers: {
-          "x-api-key": shipKey,
+          Authorization: `Bearer ${shipKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

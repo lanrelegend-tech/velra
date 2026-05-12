@@ -3,7 +3,7 @@
 import Link from "next/link";
 import MonthlySalesChart from "@/app/components/MonthlySalesChart";
 import ConditionalNavbar from "../../components/ConditionalNavbar";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -28,7 +28,39 @@ export default function DashboardOverview() {
     refetchIntervalInBackground: true,
   });
 
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 8;
+
   const safeOrders = orders || [];
+
+  const filteredOrders = useMemo(() => {
+    return safeOrders.filter((order) => {
+      const matchesSearch =
+        order.email?.toLowerCase().includes(search.toLowerCase()) ||
+        order.address?.toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus =
+        filterStatus === "all" || order.status === filterStatus;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [safeOrders, search, filterStatus]);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ordersPerPage;
+    const end = start + ordersPerPage;
+    return filteredOrders.slice(start, end);
+  }, [filteredOrders, currentPage]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus]);
 
   // 📊 STATS
   const totalOrders = safeOrders.length;
@@ -111,6 +143,30 @@ export default function DashboardOverview() {
     }
   }
 
+  function exportCSV() {
+    const headers = ["Email", "Total", "Status", "Payment", "Address"];
+
+    const rows = filteredOrders.map((o) => [
+      o.email,
+      o.total_price,
+      o.status,
+      o.payment_status,
+      o.address,
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers, ...rows].map((e) => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "orders.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
     return (
     <div className="min-h-screen p-8 space-y-10 mb-20 bg-gray-50 text-black">
        <div className="bg-white border border-gray-200 shadow-sm rounded-xl mb-6 px-6 py-4 flex items-center justify-between">
@@ -152,6 +208,32 @@ export default function DashboardOverview() {
         <p className="text-sm">
           Real-time business performance
         </p>
+      </div>
+
+      {/* SEARCH & FILTER */}
+      <div className="mb-4 flex items-center">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search orders, email, address..."
+          className="border rounded px-3 py-2 text-sm w-full md:w-64"
+        />
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="ml-3 px-3 py-2 border rounded text-sm"
+        >
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+        </select>
+        <button
+          onClick={exportCSV}
+          className="ml-3 px-3 py-2 bg-black text-white rounded text-sm"
+        >
+          Export CSV
+        </button>
       </div>
 
       {/* STATS */}
@@ -253,15 +335,22 @@ export default function DashboardOverview() {
                     </tr>
                   ))}
                 </>
-              ) : safeOrders.length === 0 ? (
+              ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-4">
                     No orders found
                   </td>
                 </tr>
               ) : (
-                safeOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition">
+                paginatedOrders.map((order) => (
+                  <tr
+                    key={order.id}
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setDrawerOpen(true);
+                    }}
+                    className="border-t hover:bg-gray-50 cursor-pointer"
+                  >
                     <td className="py-4 px-2">{order.email}</td>
                     <td className="py-4 px-2">${Number(order.total_price || 0).toLocaleString()}</td>
                     <td className="py-4 px-2">
@@ -301,18 +390,20 @@ export default function DashboardOverview() {
                     </td>
                     <td className="py-4 px-2 flex gap-3">
                       <button
-                        onClick={() =>
-                          updateOrderStatus(order.id, "delivered")
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateOrderStatus(order.id, "delivered");
+                        }}
                         className="px-3 py-1 border rounded-md text-xs hover:bg-blue-50 hover:border-blue-400 transition"
                       >
                         Deliver
                       </button>
 
                       <button
-                        onClick={() =>
-                          updateOrderStatus(order.id, "pending")
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateOrderStatus(order.id, "pending");
+                        }}
                         className="px-3 py-1 border rounded-md text-xs hover:bg-blue-50 hover:border-blue-400 transition"
                       >
                         Pending
@@ -324,7 +415,107 @@ export default function DashboardOverview() {
             </tbody>
           </table>
         </div>
+        <div className="flex justify-between items-center mt-4 text-sm">
+
+          <p>
+            Page {currentPage} of {totalPages || 1}
+          </p>
+
+          <div className="flex gap-2">
+
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              className="px-3 py-1 border rounded disabled:opacity-40"
+            >
+              Prev
+            </button>
+
+            <button
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              className="px-3 py-1 border rounded disabled:opacity-40"
+            >
+              Next
+            </button>
+
+          </div>
+
+        </div>
       </div>
+
+      {drawerOpen && selectedOrder && (
+        <div className="fixed inset-0 bg-black/40 flex justify-end z-50">
+
+          <div className="w-full md:w-[400px] bg-white h-full p-5 shadow-xl overflow-y-auto">
+
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-lg">Order Details</h2>
+
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="text-gray-500 hover:text-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+
+              <div>
+                <p className="text-gray-500">Customer</p>
+                <p className="font-medium">{selectedOrder.email}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Phone</p>
+                <p className="font-medium">{selectedOrder.phone || "N/A"}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Address</p>
+                <p className="font-medium">{selectedOrder.address}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Total</p>
+                <p className="font-bold">${selectedOrder.total_price}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Status</p>
+                <p className="font-medium">{selectedOrder.status}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Payment</p>
+                <p className="font-medium">{selectedOrder.payment_status}</p>
+              </div>
+
+            </div>
+
+            <div className="mt-6 flex gap-2">
+
+              <button
+                onClick={() => updateOrderStatus(selectedOrder.id, "shipped")}
+                className="flex-1 bg-blue-600 text-white py-2 rounded"
+              >
+                Mark Shipped
+              </button>
+
+              <button
+                onClick={() => updateOrderStatus(selectedOrder.id, "delivered")}
+                className="flex-1 bg-green-600 text-white py-2 rounded"
+              >
+                Mark Delivered
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
