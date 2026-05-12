@@ -72,16 +72,21 @@ function CheckoutPage() {
 
   // 🚚 LOAD SHIPPING PRICE
   
-// 🚚 LOAD SHIPPING PRICE (FIXED + DEBOUNCED)
+// 🚚 LOAD SHIPPING PRICE (FIXED + PRODUCTION SAFE)
 useEffect(() => {
   const timeout = setTimeout(() => {
     const getShippingPrice = async () => {
       try {
-        // prevent empty/invalid calls
         if (!address || address.trim().length < 5 || cart.length === 0) return;
 
         console.log("📍 ADDRESS USED:", address);
-        console.log("🛒 CART ITEMS:", cart);
+
+        // ✅ FIXED ITEM FORMAT
+        const formattedItems = cart.map((item) => ({
+          name: item.name,
+          quantity: item.qty || 1,
+          weight: item.weight || 1,
+        }));
 
         const res = await fetch("https://velra-2.onrender.com/api/shipping-price", {
           method: "POST",
@@ -90,7 +95,7 @@ useEffect(() => {
           },
           body: JSON.stringify({
             address: address.trim(),
-            items: cart,
+            items: formattedItems,
           }),
         });
 
@@ -107,7 +112,7 @@ useEffect(() => {
     };
 
     getShippingPrice();
-  }, 600); // debounce delay
+  }, 800);
 
   return () => clearTimeout(timeout);
 }, [address, cart, deliveryOption]);
