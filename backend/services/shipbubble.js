@@ -8,10 +8,12 @@ const createShipment = async (order) => {
       throw new Error("Missing required delivery fields");
     }
 
+    console.log("🚚 SHIPBUBBLE USING KEY:", process.env.SHIPBUBBLE_SANDBOX_KEY);
+
     const res = await fetch("https://api.shipbubble.com/v1/shipping/labels", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.SHIPBUBBLE_SANDBOX_KEY}`,
+        "x-api-key": process.env.SHIPBUBBLE_SANDBOX_KEY,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -61,10 +63,12 @@ createShipment.getShippingRate = async ({ address, items }) => {
   try {
     if (!address) throw new Error("Address is required");
 
+    console.log("🚚 SHIPBUBBLE USING KEY:", process.env.SHIPBUBBLE_SANDBOX_KEY);
+
     const res = await fetch("https://api.shipbubble.com/v1/shipping/rates", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.SHIPBUBBLE_SANDBOX_KEY}`,
+        "x-api-key": process.env.SHIPBUBBLE_SANDBOX_KEY,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
