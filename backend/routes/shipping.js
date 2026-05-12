@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-router.post("/shipping-price", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { address, items } = req.body;
 

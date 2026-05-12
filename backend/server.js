@@ -59,7 +59,7 @@ app.use("/paystack", paystackRoutes);
 app.use("/crypto", require("./routes/cryptoWebhook"));
 const shippingRoute = require("./routes/shipping");
 
-app.use("/api", shippingRoute);
+app.use("/api/shipping-price", shippingRoute);
 const shipbubbleWebhook = require("./routes/shipbubbleWebhook");
 // 🚚 Shipbubble webhook + API routes (rates, tracking, webhooks)
 app.use("/api/shipbubble", shipbubbleWebhook);
