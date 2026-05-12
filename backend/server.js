@@ -35,9 +35,13 @@ app.use((req, res, next) => {
 // =========================
 app.use(
   cors({
-    origin: "*",
+    origin: [
+      "http://localhost:3000",
+      "https://velra-s5m1.vercel.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
@@ -86,6 +90,35 @@ app.use("/api/shipbubble", shipbubbleWebhook);
 app.get("/webhook-test", (req, res) => {
   console.log("🧪 WEBHOOK TEST HIT");
   res.json({ ok: true });
+});
+
+// =========================
+// HEALTH CHECK
+// =========================
+app.get("/", (req, res) => {
+  res.send("Backend running 🚀");
+});
+
+// =========================
+// ADMIN DASHBOARD TEST ROUTE
+// =========================
+app.get("/admin/dashboard", async (req, res) => {
+  try {
+    const { count } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true });
+
+    res.json({
+      success: true,
+      message: "Admin dashboard connected",
+      total_orders: count || 0,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
 });
 
 // =========================
