@@ -2,7 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
 const { createClient } = require("@supabase/supabase-js");
-const createShipment = require('../services/easyship');
+const createShipment = require('../services/shippo');
 let Resend;
 try {
   Resend = require("resend").Resend;
@@ -225,11 +225,11 @@ router.post("/", async (req, res) => {
       console.log("✅ ORDER UPDATED");
 
       // =========================
-      // 🚚 EASYSHIP AUTO SHIPPING
+      // 🚚 SHIPPO AUTO SHIPPING
       // =========================
       try {
         if (!order.tracking_id) {
-          console.log("🚚 CREATING EASYSHIP SHIPMENT...");
+          console.log("🚚 CREATING SHIPPO SHIPMENT...");
 
           const shipment = await createShipment(order);
 
@@ -238,20 +238,20 @@ router.post("/", async (req, res) => {
               .from("orders")
               .update({
                 tracking_id: shipment.tracking_id || shipment.id || null,
-                courier: "Easyship",
+                courier: shipment.courier || "Shippo",
                 shipping_status: "processing"
               })
               .eq("id", order.id);
 
-            console.log("🚚 EASYSHIP SHIPMENT CREATED:", shipment.tracking_id || shipment.id);
+            console.log("🚚 SHIPPO SHIPMENT CREATED:", shipment.tracking_id || shipment.id);
           } else {
-            console.log("⚠️ EASYSHIP DID NOT RETURN SHIPMENT");
+            console.log("⚠️ SHIPPO DID NOT RETURN SHIPMENT");
           }
         } else {
           console.log("⚠️ SHIPPING ALREADY EXISTS - SKIPPING");
         }
       } catch (err) {
-        console.log("❌ EASYSHIP SHIPPING ERROR:", err.message);
+        console.log("❌ SHIPPO SHIPPING ERROR:", err.message);
       }
 
       // SEND EMAIL

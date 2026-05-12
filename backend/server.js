@@ -18,7 +18,7 @@ const orderRoutes = require("./routes/order");
 const paystackRoutes = require("./routes/paystack");
 const cryptoWebhookRoutes = require("./routes/cryptoWebhook");
 const shippingRoute = require("./routes/api/shipping-price");
-const easyshipWebhook = require("./routes/api/easyshipWebhook");
+const shippoWebhook = require("./routes/api/shippoWebhook");
 
 const app = express();
 
@@ -87,8 +87,8 @@ app.use("/api/crypto", cryptoWebhookRoutes);
 // Shipping
 app.use("/api/shipping-price", shippingRoute);
 
-// Easyship Webhook
-app.use("/api/easyship/webhook", easyshipWebhook);
+// Shippo Webhook
+app.use("/api/webhooks/shippo", shippoWebhook);
 
 // =========================
 // WEBHOOK TEST ROUTE

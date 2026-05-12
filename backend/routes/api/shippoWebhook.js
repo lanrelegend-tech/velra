@@ -31,23 +31,24 @@ const sendEmail = async (to, subject, text) => {
   }
 };
 
+// 🚚 SHIPPO TRACKING WEBHOOK
 router.post("/", async (req, res) => {
   try {
     const event = req.body;
 
-    console.log("🚚 EASYSHIP WEBHOOK:", event);
+    console.log("🚚 SHIPPO WEBHOOK:", event);
 
-    // 🔐 Webhook security check
-    const webhookSecret = process.env.EASYSHIP_WEBHOOK_SECRET;
-    if (webhookSecret && req.headers["x-webhook-secret"] !== webhookSecret) {
-      console.log("❌ Unauthorized webhook request");
-      return res.sendStatus(401);
+    // 🔐 Shippo webhooks do NOT use x-webhook-secret header
+    // Keep this simple unless signature verification is implemented
+    const webhookSecret = process.env.SHIPPO_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      console.log("ℹ️ Webhook secret is set but not verified (Shippo requires signature verification for production)");
     }
 
-    const status = (event?.status || "").toLowerCase();
-    const tracking = event?.tracking_number || event?.tracking_id;
+    const status = (event?.data?.tracking_status || event?.tracking_status || "").toLowerCase();
+    const tracking = event?.data?.tracking_number || event?.tracking_number || event?.tracking_id;
 
-    if (!tracking || !status) return res.sendStatus(200);
+    if (!tracking) return res.sendStatus(200);
 
     const { data: order } = await supabase
       .from("orders")
@@ -60,8 +61,10 @@ router.post("/", async (req, res) => {
     // 🔁 Prevent duplicate updates
     const statusMap = {
       in_transit: "shipped",
+      transit: "shipped",
       delivered: "delivered",
-      failed: "failed",
+      failure: "failed",
+      exception: "failed",
     };
 
     const newStatus = statusMap[status];
@@ -113,7 +116,7 @@ router.post("/", async (req, res) => {
       .update(update)
       .eq("tracking_id", tracking);
 
-    console.log(`📦 Tracking ${tracking} updated → ${newStatus}`);
+    console.log("📦 SHIPPO TRACKING UPDATE:", { tracking, status, newStatus });
 
     return res.sendStatus(200);
   } catch (err) {

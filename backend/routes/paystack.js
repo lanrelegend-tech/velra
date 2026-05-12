@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const createShipment = require('../services/easyship');
+const createShipment = require('../services/shippo');
 const { createClient } = require('@supabase/supabase-js');
 let Resend;
 try {
@@ -260,7 +260,7 @@ If you have any questions, feel free to contact us anytime.
       }
 
       // =========================
-      // CREATE EASYSHIP DELIVERY
+      // CREATE SHIPPO DELIVERY
       // =========================
       try {
         if (finalOrder.tracking_id) {
@@ -275,7 +275,7 @@ If you have any questions, feel free to contact us anytime.
             .from('orders')
             .update({
               tracking_id: shipment.tracking_id || shipment.id || null,
-              courier: 'Easyship',
+              courier: shipment.courier || 'Shippo',
               shipping_status: 'shipped'
             })
             .eq('id', finalOrder.id);
@@ -292,7 +292,7 @@ If you have any questions, feel free to contact us anytime.
           }
         }
       } catch (err) {
-        console.log('❌ EASYSHIP ERROR:', err.message);
+        console.log('❌ SHIPPO ERROR:', err.message);
       }
 
       await logWebhook({

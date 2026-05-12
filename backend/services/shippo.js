@@ -1,11 +1,8 @@
-const axios = require("axios");
-
-const EASYSHIP_BASE_URL =
-  process.env.EASYSHIP_BASE_URL || "https://api.easyship.com";
-const EASYSHIP_API_KEY = process.env.EASYSHIP_API_KEY;
+const shippoLib = require("shippo");
+const SHIPPO_API_KEY = process.env.SHIPPO_API_KEY;
 
 // =========================
-// EASYSHIP SHIPPING SERVICE (IMPROVED PRODUCTION VERSION)
+// SHIPPO SHIPPING SERVICE (PRODUCTION VERSION)
 // =========================
 
 const normalizeCountry = (order) => {
@@ -22,13 +19,15 @@ const normalizeCountry = (order) => {
     if (/^[A-Z]\d[A-Z]/.test(code)) return "CA";
   }
 
-  return "NG";
+  return "CA";
 };
 
 const createShipment = async (order) => {
   try {
     if (!order) throw new Error("No order provided");
-    if (!EASYSHIP_API_KEY) throw new Error("Missing Easyship API key");
+    if (!SHIPPO_API_KEY) throw new Error("Missing Shippo API key");
+
+    const shippo = shippoLib(SHIPPO_API_KEY);
 
     // =========================
     // SAFE NORMALIZATION
@@ -41,7 +40,7 @@ const createShipment = async (order) => {
         ? order.address
         : order.shipping_address?.address_line_1 || "";
 
-    const city = order.city || order.shipping_address?.city || "Lagos";
+    const city = order.city || order.shipping_address?.city || "Toronto";
     const postal_code = order.postal_code || order.shipping_address?.postal_code || "";
 
     const country = normalizeCountry(order);
@@ -50,78 +49,69 @@ const createShipment = async (order) => {
     // PAYLOAD
     // =========================
     const payload = {
-      origin_address: {
-        country_alpha2: "NG",
+      address_from: {
+        name: "Velra",
+        street1: "Toronto",
+        city: "Toronto",
+        state: "ON",
+        zip: "M5V3L9",
+        country: "CA",
       },
-      destination_address: {
+
+      address_to: {
         name,
         email,
-        address_line_1: address,
+        street1: address || "Unknown",
         city,
-        postal_code,
-        country_alpha2: country,
+        zip: postal_code || "M5V3L9",
+        country,
       },
-      items: [
+
+      parcels: [
         {
-          description: "Order Items",
-          quantity: order.items?.length || 1,
-          declared_value: Number(order.total || 0),
+          length: "10",
+          width: "10",
+          height: "5",
+          distance_unit: "in",
+          weight: "1",
+          mass_unit: "lb",
         },
       ],
-      total_value: Number(order.total || 0),
-      incoterms: "DDU",
+
+      async: false,
     };
 
-    console.log("🚚 EASYSHIP SHIPMENT REQUEST", {
-      endpoint: `${EASYSHIP_BASE_URL}/2023-01/shipments`,
+    console.log("🚚 SHIPPO SHIPMENT REQUEST", {
       country,
       city,
-      hasKey: !!EASYSHIP_API_KEY,
+      hasKey: !!SHIPPO_API_KEY,
     });
 
     // =========================
     // API CALL
     // =========================
-    const response = await axios.post(
-      `${EASYSHIP_BASE_URL}/2023-01/shipments`,
-      payload,
-      {
-        headers: {
-          Authorization: EASYSHIP_API_KEY.startsWith("Bearer ")
-            ? EASYSHIP_API_KEY
-            : `Bearer ${EASYSHIP_API_KEY}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        timeout: 15000,
-      }
-    );
+    const shipment = await shippo.shipments.create(payload);
 
-    const shipment = response.data;
-
-    if (!shipment) throw new Error("Empty Easyship response");
+    if (!shipment) throw new Error("Empty Shippo response");
 
     // =========================
     // NORMALIZED RETURN
     // =========================
     return {
-      id: shipment.id || shipment.shipment_id || null,
+      id: shipment.object_id || shipment.shipment_id || null,
       tracking_id:
         shipment.tracking_number || shipment.tracking_id || null,
-      courier: "Easyship",
+      courier: shipment.rates?.[0]?.provider || "Shippo",
       status: shipment.status || "processing",
     };
   } catch (err) {
-    console.log("❌ EASYSHIP CREATE ERROR:", {
-      message: err.message,
-      response: err.response?.data || null,
-    });
+    console.log("❌ SHIPPO CREATE ERROR:", err.message);
 
     // safe fallback (do not break order flow)
     return {
       id: null,
       tracking_id: null,
-      courier: "Easyship",
+      courier: "Shippo",
       status: "pending",
       error: true,
     };

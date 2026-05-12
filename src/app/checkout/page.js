@@ -146,9 +146,17 @@ useEffect(() => {
   document.body.appendChild(script);
 }, []);
 
-// FETCH SHIPPING RATE (OPTIMIZED + DEBOUNCED)
 useEffect(() => {
-  if (!isStep2Valid || cart.length === 0) return;
+  const isValid =
+  isCanadaValid() &&
+  address?.trim()?.length > 5 &&
+  cart.length > 0;
+
+  if (!isValid) {
+    setShippingFee(0);
+    setShippingLoading(false);
+    return;
+  }
 
   const controller = new AbortController();
 
@@ -186,6 +194,8 @@ useEffect(() => {
         }
       );
 
+      if (!res.ok) throw new Error("Shipping API failed");
+
       const data = await res.json();
 
       setShippingFee(Number(data?.shipping_fee ?? 15));
@@ -197,13 +207,13 @@ useEffect(() => {
     } finally {
       setShippingLoading(false);
     }
-  }, 600);
+  }, 800);
 
   return () => {
     clearTimeout(timeout);
     controller.abort();
   };
-}, [postalCode, city, province, deliveryOption]);
+},  [address, postalCode, city, province, cart, deliveryOption]);
 
 const openModal = (msg) => {
   setMessage(msg);

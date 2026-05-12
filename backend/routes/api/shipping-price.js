@@ -12,45 +12,66 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // 🚀 TRY EASYSHIP FIRST (REAL SHIPPING RATES)
     let shippingFee = null;
 
+    // 🚀 TRY SHIPPO FIRST (REAL SHIPPING RATES)
     try {
-      const easyshipRes = await fetch("https://public-api.easyship.com/rates", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.EASYSHIP_ACCESS_TOKEN}`,
+      const shippo = require("shippo")(process.env.SHIPPO_API_KEY);
+
+      const totalWeight = items.reduce((sum, item) => {
+        const weight = item.weight || 0.5;
+        return sum + weight * (item.qty || 1);
+      }, 0);
+
+      const shipment = await shippo.shipments.create({
+        address_from: {
+          name: "Velra",
+          street1: "Toronto",
+          city: "Toronto",
+          state: "ON",
+          zip: "M5V3L9",
+          country: "CA",
         },
-        body: JSON.stringify({
-          origin_country: origin_country || "CA",
-          destination: {
-            country: destination.country,
-            city: destination.city,
-            state: destination.state,
-            postal_code: destination.postal_code,
-            address_line_1: destination.address_line_1,
+
+        address_to: {
+          name: "Customer",
+          street1: destination.address_line_1 || "Unknown",
+          city: destination.city || "Toronto",
+          state: destination.state || "ON",
+          zip: destination.postal_code || "M5V3L9",
+          country: destination.country || "CA",
+        },
+
+        parcels: [
+          {
+            length: "10",
+            width: "10",
+            height: "5",
+            distance_unit: "in",
+            weight: totalWeight,
+            mass_unit: "lb",
           },
-          parcels: items.map((item) => ({
-            weight: item.weight || 0.5,
-            quantity: item.qty || 1,
-          })),
-        }),
+        ],
+
+        async: false,
       });
 
-      const easyshipData = await easyshipRes.json();
+      const rates = shipment?.rates || [];
 
-      // try to extract cheapest rate safely
-      const rates = easyshipData?.rates || easyshipData?.data?.rates;
+      if (rates.length > 0) {
+        const cheapest = rates.reduce((min, rate) => {
+          return Number(rate.amount) < Number(min.amount)
+            ? rate
+            : min;
+        });
 
-      if (rates && rates.length > 0) {
-        shippingFee = Number(rates[0].total_charge || rates[0].price || rates[0].rate);
+        shippingFee = Number(cheapest.amount);
       }
     } catch (err) {
-      console.log("Easyship rates failed, using fallback:", err.message);
+      console.log("Shippo rates failed, using fallback:", err.message);
     }
 
-    // 🧠 FALLBACK IF EASYSHIP FAILS
+    // 🧠 FALLBACK IF SHIPPO FAILS
     if (!shippingFee) {
       const totalWeight = items.reduce((sum, item) => {
         const weight = item.weight || 0.5;
