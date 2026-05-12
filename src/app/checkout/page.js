@@ -24,341 +24,385 @@ function CheckoutPage() {
   const [shippingFee, setShippingFee] = useState(0);
   const [deliveryOption, setDeliveryOption] = useState("standard");
   const [checkoutStep, setCheckoutStep] = useState(1);
+  const [country, setCountry] = useState("CA");
+const [postalCode, setPostalCode] = useState("");
+const [city, setCity] = useState("");
+const [province, setProvince] = useState("ON");
 
   const FREE_SHIPPING_THRESHOLD = 100;
   const [shippingLoading, setShippingLoading] = useState(false);
 
-  // ✅ LOAD USER DATA FROM CUSTOMERS TABLE
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const { createClient } = await import("@supabase/supabase-js");
+const isCanadaValid = () => {
+  return (
+    country === "CA" &&
+    postalCode?.trim().length >= 5 &&
+    city?.trim().length > 2 &&
+    province?.trim().length === 2
+  );
+};
 
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
+// ✅ STEP VALIDATION LOGIC
+const isStep1Valid =
+  name?.trim()?.length > 0 &&
+  phone?.trim()?.length > 0 &&
+  email?.trim()?.length > 0 &&
+  isValidEmail(email);
 
-        const { data: { user } } = await supabase.auth.getUser();
+const isStep2Valid =
+  address?.trim()?.length > 0 &&
+  city?.trim()?.length > 0 &&
+  postalCode?.trim()?.length > 0 &&
+  province?.trim()?.length === 2 &&
+  country === "CA";
 
-        if (!user) return;
+// Optional: grouped step control (useful for Next button later)
+const canProceedStep = {
+  1: isStep1Valid,
+  2: isStep2Valid,
+  3: canProceed,
+};
 
-        setEmail(user.email || "");
-
-        const { data, error } = await supabase
-          .from("customers")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        console.log("CUSTOMER DATA:", data);
-        console.log("CUSTOMER ERROR:", error);
-
-        if (error) {
-          console.log("Customer fetch error:", error.message);
-        }
-
-        const meta = user.user_metadata || {};
-
-        // ✅ safe fallbacks (no email-as-name anymore)
-        setName(data?.name || meta.name || "");
-        setAddress(data?.address || "");
-        setPhone(data?.phone || "");
-        setEmail(data?.email || user.email || "");
-
-      } catch (err) {
-        console.log("Load user failed:", err.message);
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  // SAVE ABANDONED CHECKOUT
-  useEffect(() => {
-    const data = {
-      name,
-      email,
-      phone,
-      address,
-      cart,
-      deliveryOption,
-    };
-
-    localStorage.setItem("abandoned_checkout", JSON.stringify(data));
-  }, [name, email, phone, address, cart, deliveryOption]);
-
-  
-
-  // ✅ LOAD PAYSTACK
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://js.paystack.co/v1/inline.js";
-    script.async = true;
-
-    script.onload = () => setPaystackReady(true);
-
-    document.body.appendChild(script);
-  }, []);
-
-  // FETCH SHIPPING RATE (REAL SHIPPING PER ADDRESS)
-  useEffect(() => {
-    const getShipping = async () => {
-      try {
-        if (!address || cart.length === 0) return;
-
-        setShippingLoading(true);
-
-        const res = await fetch("https://velra-2.onrender.com/api/shipping-price", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address, items: cart }),
-        });
-
-        const data = await res.json();
-
-        if (data?.shipping_fee !== undefined) {
-          setShippingFee(Number(data.shipping_fee) || 0);
-        }
-      } catch (err) {
-        console.log("SHIPPING ERROR:", err.message);
-      } finally {
-        setShippingLoading(false);
-      }
-    };
-
-    getShipping();
-  }, [address, cart, deliveryOption]);
-
-  // ✅ EMAIL VALIDATION
-  const isValidEmail = (email) => {
-    return /\S+@\S+\.\S+/.test(email);
-  };
-
-  const openModal = (msg) => {
-    setMessage(msg);
-    setIsOpen(true);
-
-    setTimeout(() => {
-      setIsOpen(false);
-      setMessage("");
-    }, 2000);
-  };
-
-  // ✅ TOTAL
-  const total = cart.reduce((sum, item) => {
-    return sum + item.price * item.qty;
-  }, 0);
-
-  const baseShippingFee =
-    deliveryOption === "express"
-      ? Math.round(shippingFee * 1.5)
-      : shippingFee;
-
-  const adjustedShippingFee =
-    total >= FREE_SHIPPING_THRESHOLD ? 0 : baseShippingFee;
-
-  // 💳 CRYPTO PAYMENT (NOWPAYMENTS)
-  const handleCryptoPayment = async () => {
-    setLoading(true);
-    setStep("creating_order");
-    openModal("Preparing crypto payment...");
-    setError("");
-
-    if (!name || !address || !phone || !email) {
-      setLoading(false);
-      openModal("Fill all fields");
-      return;
-    }
-
+// ✅ LOAD USER DATA FROM CUSTOMERS TABLE
+useEffect(() => {
+  const loadUser = async () => {
     try {
-      setStep("creating_invoice");
-      const res = await fetch("https://velra-2.onrender.com/crypto/create-checkout", {
+      const { createClient } = await import("@supabase/supabase-js");
+
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      );
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      setEmail(user.email || "");
+
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      console.log("CUSTOMER DATA:", data);
+      console.log("CUSTOMER ERROR:", error);
+
+      if (error) {
+        console.log("Customer fetch error:", error.message);
+      }
+
+      const meta = user.user_metadata || {};
+
+      setName(data?.name || meta.name || "");
+      setAddress(data?.address || "");
+      setPhone(data?.phone || "");
+      setEmail(data?.email || user.email || "");
+
+    } catch (err) {
+      console.log("Load user failed:", err.message);
+    }
+  };
+
+  loadUser();
+}, []);
+
+// SAVE ABANDONED CHECKOUT
+useEffect(() => {
+  const data = {
+    name,
+    email,
+    phone,
+    address,
+    cart,
+    deliveryOption,
+  };
+
+  localStorage.setItem("abandoned_checkout", JSON.stringify(data));
+}, [name, email, phone, address, cart, deliveryOption]);
+
+// ✅ LOAD PAYSTACK
+useEffect(() => {
+  const script = document.createElement("script");
+  script.src = "https://js.paystack.co/v1/inline.js";
+  script.async = true;
+
+  script.onload = () => setPaystackReady(true);
+
+  document.body.appendChild(script);
+}, []);
+
+// FETCH SHIPPING RATE (REAL SHIPPING PER ADDRESS)
+useEffect(() => {
+  const getShipping = async () => {
+    try {
+      if (!address || !postalCode || !city || !province || cart.length === 0) return;
+
+      setShippingLoading(true);
+
+      const items = cart.map((item) => ({
+        title: item.name,
+        quantity: item.qty,
+        value: item.price,
+        weight: item.weight || 0.5,
+        length: item.length || 10,
+        width: item.width || 10,
+        height: item.height || 10,
+      }));
+
+      const res = await fetch("https://velra-2.onrender.com/api/shipping-price", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          email,
-          phone,
-          address,
-          amount: total + adjustedShippingFee,
-          payment_method: "crypto",
-          shipping_method: deliveryOption,
-          shipping_fee: adjustedShippingFee,
+          origin_country: "CA",
+          destination: {
+            address_line_1: address,
+            city,
+            state: province,
+            postal_code: postalCode,
+            country: "CA",
+          },
+          items,
         }),
       });
 
       const data = await res.json();
 
-      console.log("CRYPTO RESPONSE:", data);
-
-      const paymentUrl =
-        data?.payment?.invoice_url ||
-        data?.payment?.payment_url ||
-        data?.payment?.url;
-
-      if (!paymentUrl) {
-        setError("Crypto payment failed");
-        setStep("idle");
-        openModal("Crypto payment failed");
-        setLoading(false);
-        return;
+      if (data?.shipping_fee !== undefined) {
+        setShippingFee(Number(data.shipping_fee));
+      } else {
+        setShippingFee(15);
       }
-
-      setPaymentData(data?.payment);
-      setStep("redirecting");
-      setLoading(false);
-      openModal("Redirecting to payment...");
-      setTimeout(() => {
-        window.location.href = paymentUrl;
-      }, 800);
-
     } catch (err) {
-      console.log(err);
-      setError("Crypto payment error");
-      setStep("idle");
-      setLoading(false);
-      openModal("Crypto payment error");
+      console.log("SHIPPING ERROR:", err.message);
+      setShippingFee(15);
+    } finally {
+      setShippingLoading(false);
     }
   };
 
-  // ✅ PAYMENT FUNCTION
-  const handlePayment = async () => {
-    if (!name || !address || !phone || !email) {
-      openModal("Fill all fields");
-      return;
-    }
+  getShipping();
+}, [address, cart, deliveryOption, postalCode, city, province]);
 
-    if (!isValidEmail(email)) {
-      openModal("Enter a valid email address");
-      return;
-    }
+// ✅ EMAIL VALIDATION
+const isValidEmail = (email) => {
+  return /\S+@\S+\.\S+/.test(email);
+};
 
-    if (!paystackReady || !window.PaystackPop) {
-      openModal("Payment system is still loading");
-      return;
-    }
+const openModal = (msg) => {
+  setMessage(msg);
+  setIsOpen(true);
 
-    // 🧾 CREATE ORDER FIRST (so webhook can find it)
-    const orderRes = await fetch("https://velra-2.onrender.com/orders", {
+  setTimeout(() => {
+    setIsOpen(false);
+    setMessage("");
+  }, 2000);
+};
+
+// ✅ TOTAL
+const total = cart.reduce((sum, item) => {
+  return sum + item.price * item.qty;
+}, 0);
+
+const baseShippingFee =
+  deliveryOption === "express"
+    ? Math.round(shippingFee * 1.5)
+    : shippingFee;
+
+const adjustedShippingFee =
+  total >= FREE_SHIPPING_THRESHOLD ? 0 : baseShippingFee;
+
+// 💳 CRYPTO PAYMENT (NOWPAYMENTS)
+const handleCryptoPayment = async () => {
+  setLoading(true);
+  setStep("creating_order");
+  openModal("Preparing crypto payment...");
+  setError("");
+
+  if (!name || !address || !phone || !email) {
+    setLoading(false);
+    openModal("Fill all fields");
+    return;
+  }
+
+  try {
+    setStep("creating_invoice");
+
+    const res = await fetch("https://velra-2.onrender.com/crypto/create-checkout", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
         email,
         phone,
         address,
-        items: cart,
-        total: total + adjustedShippingFee,
-        status: "pending",
-        payment_status: "unpaid",
-        payment_method: "card",
+        amount: total + adjustedShippingFee,
+        payment_method: "crypto",
         shipping_method: deliveryOption,
         shipping_fee: adjustedShippingFee,
       }),
     });
 
-    // 🚨 STOP EARLY IF REQUEST FAILED
-    if (!orderRes.ok) {
-      console.log("❌ ORDER REQUEST FAILED:", orderRes.status);
-      openModal("Failed to create order. Try again.");
+    const data = await res.json();
+
+    const paymentUrl =
+      data?.payment?.invoice_url ||
+      data?.payment?.payment_url ||
+      data?.payment?.url;
+
+    if (!paymentUrl) {
+      setError("Crypto payment failed");
+      setStep("idle");
+      openModal("Crypto payment failed");
+      setLoading(false);
       return;
     }
 
-    let savedOrder;
-    try {
-      savedOrder = await orderRes.json();
-    } catch (err) {
-      console.log("❌ INVALID JSON RESPONSE FROM ORDER API:", err);
-      openModal("Server error. Try again.");
-      return;
-    }
+    setPaymentData(data?.payment);
+    setStep("redirecting");
+    setLoading(false);
+    openModal("Redirecting to payment...");
 
-    console.log("🧾 RAW ORDER RESPONSE:", savedOrder);
+    setTimeout(() => {
+      window.location.href = paymentUrl;
+    }, 800);
 
-    // 🧾 FINAL ORDER ID (STRICT - ONLY TRUST BACKEND ORDER UUID)
-    const orderId =
-      savedOrder?.order?.id ||
-      savedOrder?.data?.id ||
-      savedOrder?.id ||
-      null;
-
-    const cleanedOrderId = typeof orderId === "string" ? orderId.trim() : orderId;
-
-    console.log("🧾 FINAL ORDER ID:", cleanedOrderId);
-
-    console.log("🔥 PAYSTACK METADATA CHECK:", {
-      order_id: cleanedOrderId,
-      name,
-      phone,
-      address,
-    });
-
-    // 🚨 HARD STOP IF INVALID OR MISSING
-    if (!cleanedOrderId) {
-      console.log("❌ INVALID ORDER RESPONSE:", savedOrder);
-      openModal("Failed to create order. Try again.");
-      return;
-    }
-
-    const handler = window.PaystackPop.setup({
-      key: "pk_test_499eccfecb3ba036608bc11567ea7a641205b940",
-      email,
-      amount: (total + adjustedShippingFee) * 100,
-      currency: "NGN",
-
-      metadata: {
-        name: name?.toString()?.trim(),
-        phone: phone?.toString()?.trim(),
-        address: address?.toString()?.trim(),
-        order_id: cleanedOrderId,
-      },
-
-      callback: function (response) {
-  (async () => {
-    console.log("Payment success:", response);
-
-    // 🔄 UPDATE ORDER WITH PAYMENT REF
-    await fetch("https://velra-2.onrender.com/orders/" + cleanedOrderId, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment_ref: response.reference,
-        payment_status: "paid",
-      }),
-    });
-
-    clearCart();
-    router.push("/order/success");
-  })();
-},
-
-      onClose: function () {
-        openModal("Payment cancelled");
-      },
-    });
-
-    handler.openIframe();
-  };
-
-  const canProceed = name && email && phone && address && cart.length > 0;
-
-  const retryPayment = () => {
-    setError("");
+  } catch (err) {
+    console.log(err);
+    setError("Crypto payment error");
     setStep("idle");
+    setLoading(false);
+    openModal("Crypto payment error");
+  }
+};
 
-    if (paymentMethod === "crypto") {
-      handleCryptoPayment();
-    } else {
-      handlePayment();
-    }
-  };
+// ✅ PAYMENT FUNCTION
+const handlePayment = async () => {
+  if (!name || !address || !phone || !email) {
+    openModal("Fill all fields");
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    openModal("Enter a valid email address");
+    return;
+  }
+
+  if (!paystackReady || !window.PaystackPop) {
+    openModal("Payment system is still loading");
+    return;
+  }
+
+  const orderRes = await fetch("https://velra-2.onrender.com/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      email,
+      phone,
+      address: {
+        address_line_1: address,
+        city,
+        state: province,
+        postal_code: postalCode,
+        country: "CA",
+      },
+      items: cart,
+      total: total + adjustedShippingFee,
+      status: "pending",
+      payment_status: "unpaid",
+      payment_method: "card",
+      shipping_method: deliveryOption,
+      shipping_fee: adjustedShippingFee,
+    }),
+  });
+
+  if (!orderRes.ok) {
+    openModal("Failed to create order. Try again.");
+    return;
+  }
+
+  let savedOrder;
+  try {
+    savedOrder = await orderRes.json();
+  } catch (err) {
+    openModal("Server error. Try again.");
+    return;
+  }
+
+  const orderId =
+    savedOrder?.order?.id ||
+    savedOrder?.data?.id ||
+    savedOrder?.id ||
+    null;
+
+  const cleanedOrderId =
+    typeof orderId === "string" ? orderId.trim() : orderId;
+
+  if (!cleanedOrderId) {
+    openModal("Failed to create order. Try again.");
+    return;
+  }
+
+  const handler = window.PaystackPop.setup({
+    key: "pk_test_499eccfecb3ba036608bc11567ea7a641205b940",
+    email,
+    amount: (total + adjustedShippingFee) * 100,
+    currency: "NGN",
+
+    metadata: {
+      name: name?.toString()?.trim(),
+      phone: phone?.toString()?.trim(),
+      address: address?.toString()?.trim(),
+      order_id: cleanedOrderId,
+    },
+
+    callback: function (response) {
+      (async () => {
+        await fetch(
+          "https://velra-2.onrender.com/orders/" + cleanedOrderId,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              payment_ref: response.reference,
+              payment_status: "paid",
+            }),
+          }
+        );
+
+        clearCart();
+        router.push("/order/success");
+      })();
+    },
+
+    onClose: function () {
+      openModal("Payment cancelled");
+    },
+  });
+
+  handler.openIframe();
+};
+
+// ✅ FINAL VALIDATION
+const canProceed =
+  name &&
+  email &&
+  phone &&
+  address &&
+  cart.length > 0 &&
+  isCanadaValid();
+
+const retryPayment = () => {
+  setError("");
+  setStep("idle");
+
+  if (paymentMethod === "crypto") {
+    handleCryptoPayment();
+  } else {
+    handlePayment();
+  }
+};
 
   return (
     <div className="min-h-screen mt-28 px-4 md:px-20 grid md:grid-cols-3 gap-8 text-black">
@@ -398,7 +442,43 @@ function CheckoutPage() {
           onChange={(e) => setEmail(e.target.value)}
           className="w-full border p-3 outline-none"
         />
+<div className="w-full border p-3 bg-gray-100 text-sm mb-3">
+  🇨🇦 Shipping Country: Canada (Fixed for Easyship)
+</div>
+<input
+  type="text"
+  placeholder="Postal Code"
+  value={postalCode}
+  onChange={(e) => setPostalCode(e.target.value)}
+  className="w-full border p-3 outline-none mb-3"
+/>
+<input
+  type="text"
+  placeholder="City"
+  value={city}
+  onChange={(e) => setCity(e.target.value)}
+  className="w-full border p-3 outline-none mb-3"
+/>
 
+<select
+  value={province}
+  onChange={(e) => setProvince(e.target.value)}
+  className="w-full border p-3 outline-none mb-3 bg-white"
+>
+  <option value="ON">Ontario (ON)</option>
+  <option value="BC">British Columbia (BC)</option>
+  <option value="AB">Alberta (AB)</option>
+  <option value="QC">Quebec (QC)</option>
+  <option value="MB">Manitoba (MB)</option>
+  <option value="SK">Saskatchewan (SK)</option>
+  <option value="NS">Nova Scotia (NS)</option>
+  <option value="NB">New Brunswick (NB)</option>
+  <option value="NL">Newfoundland and Labrador (NL)</option>
+  <option value="PE">Prince Edward Island (PE)</option>
+  <option value="NT">Northwest Territories (NT)</option>
+  <option value="YT">Yukon (YT)</option>
+  <option value="NU">Nunavut (NU)</option>
+</select>
         <textarea
           placeholder="Delivery Address"
           value={address}
@@ -419,8 +499,29 @@ function CheckoutPage() {
           {checkoutStep < 3 && (
             <button
               type="button"
-              onClick={() => setCheckoutStep((s) => s + 1)}
-              className="px-4 py-2 bg-black text-white rounded ml-auto"
+              disabled={
+                (checkoutStep === 1 && !isStep1Valid) ||
+                (checkoutStep === 2 && !isStep2Valid)
+              }
+              onClick={() => {
+                if (checkoutStep === 1 && !isStep1Valid) {
+                  openModal("Please fill in all personal information");
+                  return;
+                }
+
+                if (checkoutStep === 2 && !isStep2Valid) {
+                  openModal("Please complete shipping details");
+                  return;
+                }
+
+                setCheckoutStep((s) => s + 1);
+              }}
+              className={`px-4 py-2 bg-black text-white rounded ml-auto ${
+                (checkoutStep === 1 && !isStep1Valid) ||
+                (checkoutStep === 2 && !isStep2Valid)
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
             >
               Next
             </button>

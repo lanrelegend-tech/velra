@@ -145,7 +145,7 @@ router.put('/:id/payment-success', async (req, res) => {
     const order = data;
 
     // 🚚 CREATE EASYSHIP SHIPMENT ON FIRST PAYMENT ONLY
-    if (!wasAlreadyPaid && order) {
+    if (!wasAlreadyPaid && order && !order.tracking_id) {
       try {
         const shipment = await createShipment(order);
 

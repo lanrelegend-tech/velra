@@ -9,11 +9,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 const sendEmail = async (to, subject, text) => {
-  if (!process.env.RESEND_API_KEY) {
-    console.log("RESEND DISABLED: Missing API key");
+  if (!resend) {
+    console.log("RESEND DISABLED");
     return;
   }
 
@@ -35,49 +37,70 @@ router.post("/", async (req, res) => {
 
     console.log("🚚 EASYSHIP WEBHOOK:", event);
 
+    // 🔐 Webhook security check
+    const webhookSecret = process.env.EASYSHIP_WEBHOOK_SECRET;
+    if (webhookSecret && req.headers["x-webhook-secret"] !== webhookSecret) {
+      console.log("❌ Unauthorized webhook request");
+      return res.sendStatus(401);
+    }
+
     const status = (event?.status || "").toLowerCase();
     const tracking = event?.tracking_number || event?.tracking_id;
 
-    if (!tracking) return res.sendStatus(200);
-    if (!status) return res.sendStatus(200);
+    if (!tracking || !status) return res.sendStatus(200);
 
     const { data: order } = await supabase
       .from("orders")
-      .select("email")
+      .select("email, status")
       .eq("tracking_id", tracking)
       .maybeSingle();
 
+    if (!order) return res.sendStatus(200);
+
+    // 🔁 Prevent duplicate updates
+    const statusMap = {
+      in_transit: "shipped",
+      delivered: "delivered",
+      failed: "failed",
+    };
+
+    const newStatus = statusMap[status];
+    if (!newStatus) return res.sendStatus(200);
+
+    if (order.status === newStatus) {
+      console.log("⚠️ Duplicate status ignored");
+      return res.sendStatus(200);
+    }
+
+    let update = {
+      status: newStatus,
+    };
+
     const customerEmail = order?.email;
 
-    let update = {};
-
-    if (status === "in_transit") {
-      update.status = "shipped";
-
+    if (newStatus === "shipped") {
       if (customerEmail) {
-        sendEmail(
+        await sendEmail(
           customerEmail,
           "Your order has been shipped 🚚",
-          "Good news! Your order is now on the way and has been shipped."
+          "Good news! Your order is now on the way."
         );
       }
     }
-    if (status === "delivered") {
-      update.status = "delivered";
 
+    if (newStatus === "delivered") {
       if (customerEmail) {
-        sendEmail(
+        await sendEmail(
           customerEmail,
           "Your order has been delivered 🎉",
           "Your order has been successfully delivered. Thank you for shopping with us!"
         );
       }
     }
-    if (status === "failed") {
-      update.status = "failed";
 
+    if (newStatus === "failed") {
       if (customerEmail) {
-        sendEmail(
+        await sendEmail(
           customerEmail,
           "Delivery update failed ⚠️",
           "We encountered an issue with your delivery. We will resolve it shortly."
@@ -85,18 +108,14 @@ router.post("/", async (req, res) => {
       }
     }
 
-    if (Object.keys(update).length === 0) {
-      console.log("⚠️ No valid status update from Easyship webhook");
-      return res.sendStatus(200);
-    }
-
     await supabase
       .from("orders")
       .update(update)
       .eq("tracking_id", tracking);
 
-    return res.sendStatus(200);
+    console.log(`📦 Tracking ${tracking} updated → ${newStatus}`);
 
+    return res.sendStatus(200);
   } catch (err) {
     console.log("WEBHOOK ERROR:", err.message);
     return res.sendStatus(200);

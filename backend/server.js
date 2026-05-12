@@ -17,7 +17,7 @@ const { createClient } = require("@supabase/supabase-js");
 const orderRoutes = require("./routes/order");
 const paystackRoutes = require("./routes/paystack");
 const cryptoWebhookRoutes = require("./routes/cryptoWebhook");
-const shippingRoute = require("./routes/api/shipping");
+const shippingRoute = require("./routes/api/shipping-price");
 const easyshipWebhook = require("./routes/api/easyshipWebhook");
 
 const app = express();
