@@ -91,6 +91,7 @@ const createShipment = async (order) => {
     // API CALL
     // =========================
     const shipment = await shippo.shipments.create(payload);
+    console.log("🚚 SHIPPO SHIPMENT RESPONSE:", JSON.stringify(shipment, null, 2));
 
     if (!shipment) throw new Error("Empty Shippo response");
 
@@ -101,11 +102,12 @@ const createShipment = async (order) => {
       id: shipment.object_id || shipment.shipment_id || null,
       tracking_id:
         shipment.tracking_number || shipment.tracking_id || null,
-      courier: shipment.rates?.[0]?.provider || "Shippo",
+      courier: "Shippo",
       status: shipment.status || "processing",
     };
   } catch (err) {
     console.log("❌ SHIPPO CREATE ERROR:", err.message);
+    console.log("❌ SHIPPO FULL ERROR:", err.response?.data || err);
 
     // safe fallback (do not break order flow)
     return {

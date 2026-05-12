@@ -49,22 +49,30 @@ router.post("/", async (req, res) => {
     const body = req.body;
 
     console.log("🪙 NOWPAYMENTS WEBHOOK RECEIVED:", body);
+    console.log("🔐 HEADERS:", req.headers);
+    // NOWPayments requires RAW body for correct hashing
+    const payload = req.rawBody || req.bodyRaw || JSON.stringify(body);
+    console.log("📦 RAW PAYLOAD:", payload);
 
     // -----------------------------
     // 1. VERIFY IPN SIGNATURE (FIXED SAFE VERSION)
     // -----------------------------
-    const signature = req.headers["x-nowpayments-sig"];
-
-    // NOWPayments requires RAW body for correct hashing
-    const payload = req.rawBody || JSON.stringify(body);
+    const signature = req.headers["x-nowpayments-sig"] || req.headers["X-NOWPAYMENTS-SIG"];
 
     const generatedSignature = crypto
       .createHmac("sha512", process.env.NOWPAYMENTS_IPN_SECRET)
       .update(payload)
       .digest("hex");
 
-    if (!signature || signature !== generatedSignature) {
+    if (!signature) {
+      console.log("⚠️ MISSING NOWPAYMENTS SIGNATURE HEADER");
+      return res.sendStatus(401);
+    }
+
+    if (signature !== generatedSignature) {
       console.log("❌ INVALID NOWPAYMENTS SIGNATURE");
+      console.log("Expected:", generatedSignature);
+      console.log("Received:", signature);
       return res.sendStatus(401);
     }
 
@@ -72,7 +80,7 @@ router.post("/", async (req, res) => {
     // 2. EXTRACT DATA SAFELY
     // -----------------------------
     const status = (body.payment_status || "").toLowerCase();
-    const orderId = body.order_id || body.payment_id || body?.metadata?.order_id;
+    const orderId = body.order_id || body.payment_id || body?.metadata?.order_id || body?.orderId;
 
     if (!orderId) {
       console.log("❌ NO ORDER ID IN WEBHOOK");
@@ -104,7 +112,7 @@ router.post("/", async (req, res) => {
     // -----------------------------
     // 5. VALID PAYMENT STATUS (NOWPAYMENTS)
     // -----------------------------
-    const validStatuses = ["finished", "confirmed", "sending", "partially_paid", "complete", "completed"];
+    const validStatuses = ["finished", "confirmed", "sending", "partially_paid", "complete", "completed", "waiting", "pending"];
 
     if (!validStatuses.includes(status)) {
       console.log("⏳ PAYMENT NOT COMPLETE:", status);
@@ -118,7 +126,7 @@ router.post("/", async (req, res) => {
       .from("orders")
       .update({
         status: "paid",
-        payment_status: "paid",
+        payment_status: status || "paid",
         payment_method: "crypto",
         currency: "USDT"
       })

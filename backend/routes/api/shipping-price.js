@@ -56,40 +56,47 @@ router.post("/", async (req, res) => {
         async: false,
       });
 
-      const rates = shipment?.rates || [];
+      console.log("SHIPPO RESPONSE:", JSON.stringify(shipment, null, 2));
 
-      if (rates.length > 0) {
-        const cheapest = rates.reduce((min, rate) => {
-          return Number(rate.amount) < Number(min.amount)
-            ? rate
-            : min;
-        });
+      const rates = shipment?.rates;
 
-        shippingFee = Number(cheapest.amount);
+      if (!Array.isArray(rates) || rates.length === 0) {
+        console.log("❌ EMPTY RATES FROM SHIPPO:", shipment);
+        throw new Error("NO_SHIPPO_RATES_RETURNED");
       }
+
+      const cheapest = rates.reduce((min, rate) => {
+        const a = Number(rate.amount || rate.price || 999999);
+        const b = Number(min.amount || min.price || 999999);
+        return a < b ? rate : min;
+      });
+
+      shippingFee = Number(cheapest.amount || cheapest.price);
+
     } catch (err) {
       console.log("Shippo rates failed, using fallback:", err.message);
+      console.log("Shippo debug error:", err);
     }
 
-    // 🧠 FALLBACK IF SHIPPO FAILS
+    // 🧠 STRICT FALLBACK (ONLY IF API FAILS COMPLETELY)
     if (!shippingFee) {
       const totalWeight = items.reduce((sum, item) => {
         const weight = item.weight || 0.5;
         return sum + weight * (item.qty || 1);
       }, 0);
 
-      shippingFee = 10;
+      shippingFee = 15;
 
-      if (totalWeight > 2) shippingFee = 15;
-      if (totalWeight > 5) shippingFee = 25;
-      if (totalWeight > 10) shippingFee = 40;
+      if (totalWeight > 2) shippingFee = 20;
+      if (totalWeight > 5) shippingFee = 30;
+      if (totalWeight > 10) shippingFee = 50;
 
       if (destination?.country && destination.country !== "CA") {
-        shippingFee += 20;
+        shippingFee += 25;
       }
 
       if (deliveryOption === "express") {
-        shippingFee += 10;
+        shippingFee += 15;
       }
     }
 
