@@ -203,7 +203,7 @@ useEffect(() => {
     clearTimeout(timeout);
     controller.abort();
   };
-}, [address, cart, deliveryOption, postalCode, city, province, isStep2Valid]);
+}, [postalCode, city, province, deliveryOption]);
 
 const openModal = (msg) => {
   setMessage(msg);

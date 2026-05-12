@@ -90,10 +90,14 @@ router.post("/", async (req, res) => {
       }
     );
 
-    const rates = response.data?.rates || response.data?.data?.rates || [];
+    const rates =
+  response.data?.data?.rates ||
+  response.data?.rates ||
+  [];
 
-    const validRates = rates.filter((r) => r?.total_charge > 0);
-
+    const validRates = Array.isArray(rates)
+  ? rates.filter((r) => r?.total_charge > 0)
+  : [];
     let shipping_fee = null;
     let source = "api";
 
