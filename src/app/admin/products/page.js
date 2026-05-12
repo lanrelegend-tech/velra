@@ -24,6 +24,12 @@ export default function AdminProducts() {
   });
   const [modal, setModal] = useState({ open: false, message: "", type: "success" });
   const [deleteId, setDeleteId] = useState(null);
+
+  const [darkMode, setDarkMode] = useState(false);
+  const [page, setPage] = useState(1);
+  const perPage = 8;
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
   // MODAL HELPER
   const openModal = (message, type = "success") => {
     setModal({ open: true, message, type });
@@ -51,6 +57,14 @@ export default function AdminProducts() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   // RESET FORM
   const resetForm = () => {
@@ -186,209 +200,186 @@ export default function AdminProducts() {
     }
   };
 
-  const filtered = products.filter((p) =>
-    p.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = products.filter((p) => {
+    const matchSearch = p.name?.toLowerCase().includes(search.toLowerCase());
+
+    const matchCategory =
+      categoryFilter === "all" ||
+      (Array.isArray(p.category)
+        ? p.category.includes(categoryFilter)
+        : p.category === categoryFilter);
+
+    return matchSearch && matchCategory;
+  });
+
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+
+  const totalProducts = products.length;
+  const inStock = products.filter(p => p.in_stock).length;
+  const outStock = products.filter(p => !p.in_stock).length;
+  const categoryCount = new Set(products.flatMap(p => p.category || [])).size;
 
   return (
-    <div className="min-h-screen  mb-20 bg-gray-100 p-6 text-black">
+    <div className="flex min-h-screen bg-gray-100 dark:bg-slate-900 text-black dark:text-white">
 
-      {/* ADMIN NAVBAR */}
-      <div className="bg-white border border-gray-200 shadow-sm rounded-xl mb-6 px-6 py-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-800">
-          Admin Panel
-        </h2>
+      {/* SIDEBAR */}
+      <aside className="w-64 bg-black text-white p-5 space-y-4 hidden md:block">
+        <h1 className="text-xl font-bold">Velra Admin</h1>
 
-        <div className="flex gap-4 text-sm">
-          <Link href="/admin">
-            <span className="text-gray-700 hover:text-black font-medium">
-              Dashboard
-            </span>
-          </Link>
-
-          <Link href="/admin/products">
-            <span className="text-gray-700 hover:text-black font-medium">
-              Products
-            </span>
-          </Link>
-
-          <Link href="/admin/orders">
-            <span className="text-gray-700 hover:text-black font-medium">
-              Orders
-            </span>
-          </Link>
-
-          <Link href="/">
-            <span className="text-gray-700 hover:text-black font-medium">
-              Store
-            </span>
-          </Link>
+        <div className="flex flex-col gap-3 text-sm">
+          <Link href="/admin">Dashboard</Link>
+          <Link href="/admin/products">Products</Link>
+          <Link href="/admin/orders">Orders</Link>
+          <Link href="/">Store</Link>
         </div>
-      </div>
-
-      <h1 className="text-2xl font-bold mt-20 mb-4">Products Admin</h1>
-
-      <input
-        className="border p-2 w-full mb-6"
-        placeholder="Search products..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-
-      {/* FORM */}
-      <div className="bg-white p-4 rounded shadow mb-6">
-
-        <input
-          placeholder="Name"
-          className="border p-2 w-full mb-2"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-
-        <input
-          placeholder="Price"
-          className="border p-2 w-full mb-2"
-          value={form.price}
-          onChange={(e) => setForm({ ...form, price: e.target.value })}
-        />
-
-        <textarea
-          placeholder="Description"
-          className="border p-2 w-full mb-2"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-
-        <input
-          placeholder="Category (comma separated)"
-          className="border p-2 w-full mb-2"
-          value={form.category}
-          onChange={(e) => setForm({ ...form, category: e.target.value })}
-        />
-
-        <input
-          placeholder="Sizes (S,M,L)"
-          className="border p-2 w-full mb-2"
-          value={form.sizes}
-          onChange={(e) => setForm({ ...form, sizes: e.target.value })}
-        />
-
-        <label className="flex items-center gap-2 mb-2">
-          <input
-            type="checkbox"
-            checked={form.in_stock}
-            onChange={(e) =>
-              setForm({ ...form, in_stock: e.target.checked })
-            }
-          />
-          In Stock
-        </label>
-
-        <input
-          type="file"
-          className="mb-3"
-          onChange={(e) => setImageFile(e.target.files[0])}
-        />
 
         <button
-          onClick={saveProduct}
-          className="bg-black text-white px-4 py-2 rounded"
+          onClick={() => setDarkMode(!darkMode)}
+          className="mt-5 px-3 py-1 bg-gray-800 rounded text-xs"
         >
-          {editing ? "Update Product" : "Add Product"}
+          {darkMode ? "Light Mode" : "Dark Mode"}
         </button>
-      </div>
+      </aside>
 
-      {/* LIST */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* MAIN */}
+      <main className="flex-1 p-6">
 
-        {loading
-          ? Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-white p-3 rounded shadow">
+        <h1 className="text-2xl font-bold mb-4">Products Admin</h1>
 
-                <div className="h-32 w-full mb-2 bg-gray-200 animate-pulse rounded" />
+        {/* ANALYTICS */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white dark:bg-slate-800 p-4 rounded shadow">
+            <p className="text-xs text-gray-400">Total Products</p>
+            <p className="text-xl font-bold">{totalProducts}</p>
+          </div>
 
-                <div className="space-y-2">
-                  <div className="h-4 w-24 bg-gray-200 animate-pulse rounded" />
-                  <div className="h-4 w-16 bg-gray-200 animate-pulse rounded" />
-                  <div className="h-3 w-full bg-gray-200 animate-pulse rounded" />
-                  <div className="h-3 w-20 bg-gray-200 animate-pulse rounded" />
+          <div className="bg-white dark:bg-slate-800 p-4 rounded shadow">
+            <p className="text-xs text-gray-400">In Stock</p>
+            <p className="text-xl font-bold text-green-500">{inStock}</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-4 rounded shadow">
+            <p className="text-xs text-gray-400">Out of Stock</p>
+            <p className="text-xl font-bold text-red-500">{outStock}</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-4 rounded shadow">
+            <p className="text-xs text-gray-400">Categories</p>
+            <p className="text-xl font-bold">{categoryCount}</p>
+          </div>
+        </div>
+
+        {/* SEARCH + FILTER */}
+        <div className="flex flex-col md:flex-row gap-3 mb-4">
+
+          <input
+            className="border p-2 w-full md:w-64"
+            placeholder="Search products..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="border p-2"
+          >
+            <option value="all">All Categories</option>
+            {[...new Set(products.map(p => p.category).flat())]
+              .filter(Boolean)
+              .map((cat, i) => (
+                <option key={i} value={cat}>{cat}</option>
+              ))}
+          </select>
+
+        </div>
+
+        {/* FORM */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded shadow mb-6">
+
+          <div className="border-dashed border-2 p-4 text-center mb-3"
+            onDrop={(e) => {
+              e.preventDefault();
+              setImageFile(e.dataTransfer.files[0]);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            Drag & Drop Image Here
+          </div>
+
+          <input type="file" className="mb-3" onChange={(e) => setImageFile(e.target.files[0])} />
+
+          <input placeholder="Name" className="border p-2 w-full mb-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input placeholder="Price" className="border p-2 w-full mb-2" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+          <textarea placeholder="Description" className="border p-2 w-full mb-2" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+
+          <button onClick={saveProduct} className="bg-black text-white px-4 py-2 rounded">
+            {editing ? "Update" : "Add Product"}
+          </button>
+
+        </div>
+
+        {/* PRODUCTS GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {loading
+            ? "Loading..."
+            : paginated.map((p) => (
+                <div key={p.id} className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow hover:shadow-lg transition relative">
+
+                  {/* STATUS BADGE */}
+                  <div className="absolute top-2 right-2">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      p.in_stock ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                    }`}>
+                      {p.in_stock ? "In Stock" : "Out of Stock"}
+                    </span>
+                  </div>
+
+                  <img src={p.image || "/placeholder.png"} className="h-40 w-full object-cover rounded-lg" />
+
+                  <div className="mt-3 font-semibold text-base truncate">{p.name}</div>
+
+                  <div className="flex justify-between items-center mt-1">
+                    <div className="text-green-600 font-bold">${p.price}</div>
+                    <div className="text-xs text-gray-500">
+                      Stock: {p.in_stock ? "Available" : "Empty"}
+                    </div>
+                  </div>
+
+                  <div className="text-xs opacity-70 mt-1 line-clamp-1">
+                    {Array.isArray(p.category) ? p.category.join(", ") : p.category}
+                  </div>
+
+                  {/* ACTIONS */}
+                  <div className="flex justify-between mt-4">
+                    <button
+                      onClick={() => startEdit(p)}
+                      className="text-blue-500 text-sm hover:underline"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => setDeleteId(p.id)}
+                      className="text-red-500 text-sm hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
+
                 </div>
-
-                <div className="flex justify-between mt-3">
-                  <div className="h-4 w-10 bg-gray-200 animate-pulse rounded" />
-                  <div className="h-4 w-10 bg-gray-200 animate-pulse rounded" />
-                </div>
-
-              </div>
-            ))
-          : filtered.map((p) => (
-              <div key={p.id} className="bg-white p-3 rounded shadow">
-
-                <img
-                  src={p.image || "/placeholder.png"}
-                  className="h-32 w-full object-contain mb-2"
-                />
-
-                <h3 className="font-semibold">{p.name}</h3>
-                <p>${p.price}</p>
-                <p className="text-xs">
-                  {Array.isArray(p.category) ? p.category.join(", ") : p.category}
-                </p>
-                <p className="text-xs">{p.description}</p>
-                <p className="text-xs">
-                  {Array.isArray(p.sizes) ? p.sizes.join(", ") : p.sizes}
-                </p>
-
-                <div className="flex justify-between mt-2">
-                  <button onClick={() => startEdit(p)} className="text-blue-500 text-sm">
-                    Edit
-                  </button>
-
-                  <button onClick={() => setDeleteId(p.id)} className="text-red-500 text-sm">
-                    Delete
-                  </button>
-                </div>
-
-              </div>
             ))}
-
-      </div>
-
-      {/* MODAL UI */}
-      {modal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white p-5 rounded shadow w-[90%] max-w-sm text-center">
-            <p className="text-sm font-medium">{modal.message}</p>
-          </div>
         </div>
-      )}
 
-      {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white p-6 rounded w-[90%] max-w-sm">
-            <h2 className="font-semibold mb-3">Confirm Delete</h2>
-            <p className="text-sm text-gray-600 mb-5">
-              Are you sure you want to delete this product?
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteId(null)}
-                className="px-3 py-1 bg-gray-200 rounded"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={deleteProduct}
-                className="px-3 py-1 bg-red-600 text-white rounded"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
+        {/* PAGINATION */}
+        <div className="flex justify-center gap-3 mt-6">
+          <button onClick={() => setPage(p => Math.max(p - 1, 1))}>Prev</button>
+          <span>Page {page}</span>
+          <button onClick={() => setPage(p => p + 1)}>Next</button>
         </div>
-      )}
+
+      </main>
+
     </div>
   );
 }
