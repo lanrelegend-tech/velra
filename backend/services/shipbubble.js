@@ -8,13 +8,20 @@ const createShipment = async (order) => {
       throw new Error("Missing required delivery fields");
     }
 
-    console.log("🚚 SHIPBUBBLE USING KEY:", process.env.SHIPBUBBLE_SANDBOX_KEY);
+    const shipKey = process.env.SHIPBUBBLE_SANDBOX_KEY?.trim();
+
+    if (!shipKey) {
+      throw new Error("Shipbubble API key missing in environment variables");
+    }
+
+    console.log("🚚 SHIPBUBBLE KEY LOADED:", !!shipKey);
 
     const res = await fetch("https://api.shipbubble.com/v1/shipping/labels", {
       method: "POST",
       headers: {
-        "x-api-key": process.env.SHIPBUBBLE_SANDBOX_KEY,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-api-key": shipKey,
+        "Authorization": `Bearer ${shipKey}`
       },
       body: JSON.stringify({
         store_id: process.env.SHIPBUBBLE_STORE_ID || undefined,
@@ -63,13 +70,20 @@ createShipment.getShippingRate = async ({ address, items }) => {
   try {
     if (!address) throw new Error("Address is required");
 
-    console.log("🚚 SHIPBUBBLE USING KEY:", process.env.SHIPBUBBLE_SANDBOX_KEY);
+    const shipKey = process.env.SHIPBUBBLE_SANDBOX_KEY?.trim();
+
+    if (!shipKey) {
+      throw new Error("Shipbubble API key missing in environment variables");
+    }
+
+    console.log("🚚 SHIPBUBBLE KEY LOADED:", !!shipKey);
 
     const res = await fetch("https://api.shipbubble.com/v1/shipping/rates", {
       method: "POST",
       headers: {
-        "x-api-key": process.env.SHIPBUBBLE_SANDBOX_KEY,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-api-key": shipKey,
+        "Authorization": `Bearer ${shipKey}`
       },
       body: JSON.stringify({
         store_id: process.env.SHIPBUBBLE_STORE_ID || undefined,

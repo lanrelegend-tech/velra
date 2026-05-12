@@ -9,12 +9,20 @@ router.post("/shipping-price", async (req, res) => {
       return res.status(400).json({ error: "Delivery address is required" });
     }
 
+    const shipKey = process.env.SHIPBUBBLE_SANDBOX_KEY?.trim();
+
+    if (!shipKey) {
+      return res.status(500).json({ error: "Missing Shipbubble API key" });
+    }
+
+    console.log("🚚 SHIPBUBBLE RATE KEY LOADED:", !!shipKey);
+
     const response = await fetch(
       "https://api.shipbubble.com/v1/shipping/rates",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.SHIPBUBBLE_SANDBOX_KEY}`,
+          "x-api-key": shipKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

@@ -12,45 +12,53 @@ router.post("/", async (req, res) => {
     console.log("🚚 SHIPBUBBLE WEBHOOK HIT");
 
     const event = req.body || {};
-    const status = event?.status || event?.event || event?.data?.status;
+    const statusRaw = event?.status || event?.event || event?.data?.status;
     const tracking_id = event?.tracking_id || event?.data?.tracking_id;
 
-    switch (status) {
-      case "in_transit":
-        console.log("🚛 Package is moving");
+    const status = (statusRaw || "").toLowerCase();
 
-        if (tracking_id) {
-          await supabase
-            .from("orders")
-            .update({ status: "shipped" })
-            .eq("tracking_id", tracking_id);
-        }
-        break;
+    console.log("📩 NORMALIZED STATUS:", status);
+    console.log("📦 TRACKING ID:", tracking_id);
 
-      case "delivered":
-        console.log("📦 Package delivered");
+    if (!tracking_id) {
+      console.log("⚠️ Missing tracking_id in webhook");
+      return res.sendStatus(200);
+    }
 
-        if (tracking_id) {
-          await supabase
-            .from("orders")
-            .update({ status: "delivered", payment_status: "paid" })
-            .eq("tracking_id", tracking_id);
-        }
-        break;
+    const updateOrder = async (payload) => {
+      const { error } = await supabase
+        .from("orders")
+        .update(payload)
+        .eq("tracking_id", tracking_id);
 
-      case "failed":
-        console.log("❌ Delivery failed");
+      if (error) {
+        console.log("❌ SUPABASE UPDATE ERROR:", error.message);
+      }
+    };
 
-        if (tracking_id) {
-          await supabase
-            .from("orders")
-            .update({ status: "delivery_failed" })
-            .eq("tracking_id", tracking_id);
-        }
-        break;
+    if (status === "in_transit" || status === "shipped") {
+      console.log("🚛 Package is moving");
 
-      default:
-        console.log("ℹ️ Unknown event");
+      await updateOrder({ status: "shipped" });
+    }
+
+    else if (status === "delivered") {
+      console.log("📦 Package delivered");
+
+      await updateOrder({
+        status: "delivered",
+        payment_status: "paid"
+      });
+    }
+
+    else if (status === "failed" || status === "delivery_failed") {
+      console.log("❌ Delivery failed");
+
+      await updateOrder({ status: "delivery_failed" });
+    }
+
+    else {
+      console.log("ℹ️ Unknown event:", status);
     }
 
     console.log("📩 SHIPBUBBLE EVENT RECEIVED:", {
