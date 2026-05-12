@@ -20,8 +20,7 @@ const createShipment = async (order) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": shipKey,
-        "Authorization": `Bearer ${shipKey}`
+        "x-api-key": shipKey
       },
       body: JSON.stringify({
         store_id: process.env.SHIPBUBBLE_STORE_ID || undefined,
@@ -82,8 +81,7 @@ createShipment.getShippingRate = async ({ address, items }) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": shipKey,
-        "Authorization": `Bearer ${shipKey}`
+        "x-api-key": shipKey
       },
       body: JSON.stringify({
         store_id: process.env.SHIPBUBBLE_STORE_ID || undefined,

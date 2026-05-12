@@ -13,12 +13,18 @@ router.post("/", async (req, res) => {
 
     const event = req.body || {};
     const statusRaw = event?.status || event?.event || event?.data?.status;
-    const tracking_id = event?.tracking_id || event?.data?.tracking_id;
+    const tracking_id =
+      event?.tracking_id ||
+      event?.data?.tracking_id ||
+      event?.data?.shipment?.tracking_id ||
+      event?.data?.tracking_number ||
+      event?.tracking_number;
 
     const status = (statusRaw || "").toLowerCase();
 
     console.log("📩 NORMALIZED STATUS:", status);
     console.log("📦 TRACKING ID:", tracking_id);
+    console.log("📦 RAW WEBHOOK DATA:", JSON.stringify(event));
 
     if (!tracking_id) {
       console.log("⚠️ Missing tracking_id in webhook");
@@ -29,7 +35,7 @@ router.post("/", async (req, res) => {
       const { error } = await supabase
         .from("orders")
         .update(payload)
-        .eq("tracking_id", tracking_id);
+        .eq("tracking_id", tracking_id?.toString?.() || tracking_id);
 
       if (error) {
         console.log("❌ SUPABASE UPDATE ERROR:", error.message);
