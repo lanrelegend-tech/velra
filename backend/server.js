@@ -46,6 +46,14 @@ app.use(
 );
 
 // =========================
+// SUPABASE
+// =========================
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// =========================
 // RAW BODY FIX FOR PAYSTACK
 // =========================
 app.use(
@@ -104,6 +112,13 @@ app.get("/", (req, res) => {
 // =========================
 app.get("/admin/dashboard", async (req, res) => {
   try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: "Supabase not initialized"
+      });
+    }
+
     const { count } = await supabase
       .from("orders")
       .select("*", { count: "exact", head: true });
@@ -122,17 +137,9 @@ app.get("/admin/dashboard", async (req, res) => {
 });
 
 // =========================
-// SUPABASE
-// =========================
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
-// =========================
 // RESEND CLIENT
 // =========================
-const resend = process.env.RESEND_API_KEY && Resend
+const resend = (process.env.RESEND_API_KEY && Resend)
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
@@ -161,13 +168,6 @@ const sendEmail = async (to, subject, text) => {
   } catch (err) {
     console.log("❌ EMAIL ERROR:", err.message);
   }
-};
-
-// =========================
-// HEALTH CHECK
-// =========================
-app.get("/", (req, res) => {
-  res.send("Backend running 🚀");
 });
 
 // =========================
@@ -283,5 +283,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("🚀 Server running on port", PORT);
+  console.log("📦 Supabase URL loaded:", !!process.env.SUPABASE_URL);
+  console.log("📧 Resend enabled:", !!process.env.RESEND_API_KEY);
 });

@@ -23,6 +23,10 @@ function CheckoutPage() {
   const [error, setError] = useState("");
   const [shippingFee, setShippingFee] = useState(0);
   const [deliveryOption, setDeliveryOption] = useState("standard");
+  const [checkoutStep, setCheckoutStep] = useState(1);
+
+  const FREE_SHIPPING_THRESHOLD = 100;
+  const [shippingLoading, setShippingLoading] = useState(false);
 
   // ✅ LOAD USER DATA FROM CUSTOMERS TABLE
   useEffect(() => {
@@ -70,52 +74,21 @@ function CheckoutPage() {
     loadUser();
   }, []);
 
-  // 🚚 LOAD SHIPPING PRICE
-  
-// 🚚 LOAD SHIPPING PRICE (FIXED + PRODUCTION SAFE)
-useEffect(() => {
-  const timeout = setTimeout(() => {
-    const getShippingPrice = async () => {
-      try {
-        if (!address || address.trim().length < 5 || cart.length === 0) return;
-
-        console.log("📍 ADDRESS USED:", address);
-
-        // ✅ FIXED ITEM FORMAT
-        const formattedItems = cart.map((item) => ({
-          name: item.name,
-          quantity: item.qty || 1,
-          weight: item.weight || 1,
-        }));
-
-        const res = await fetch("https://velra-2.onrender.com/api/shipping-price", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            address: address.trim(),
-            items: formattedItems,
-          }),
-        });
-
-        const data = await res.json();
-
-        console.log("🚚 SHIPPING RESPONSE:", data);
-
-        if (data?.shipping_fee !== undefined) {
-          setShippingFee(Number(data.shipping_fee) || 0);
-        }
-      } catch (err) {
-        console.log("SHIPPING FETCH ERROR:", err.message);
-      }
+  // SAVE ABANDONED CHECKOUT
+  useEffect(() => {
+    const data = {
+      name,
+      email,
+      phone,
+      address,
+      cart,
+      deliveryOption,
     };
 
-    getShippingPrice();
-  }, 800);
+    localStorage.setItem("abandoned_checkout", JSON.stringify(data));
+  }, [name, email, phone, address, cart, deliveryOption]);
 
-  return () => clearTimeout(timeout);
-}, [address, cart, deliveryOption]);
+  
 
   // ✅ LOAD PAYSTACK
   useEffect(() => {
@@ -127,6 +100,35 @@ useEffect(() => {
 
     document.body.appendChild(script);
   }, []);
+
+  // FETCH SHIPPING RATE (REAL SHIPPING PER ADDRESS)
+  useEffect(() => {
+    const getShipping = async () => {
+      try {
+        if (!address || cart.length === 0) return;
+
+        setShippingLoading(true);
+
+        const res = await fetch("https://velra-2.onrender.com/api/shipping-price", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address, items: cart }),
+        });
+
+        const data = await res.json();
+
+        if (data?.shipping_fee !== undefined) {
+          setShippingFee(Number(data.shipping_fee) || 0);
+        }
+      } catch (err) {
+        console.log("SHIPPING ERROR:", err.message);
+      } finally {
+        setShippingLoading(false);
+      }
+    };
+
+    getShipping();
+  }, [address, cart, deliveryOption]);
 
   // ✅ EMAIL VALIDATION
   const isValidEmail = (email) => {
@@ -148,10 +150,13 @@ useEffect(() => {
     return sum + item.price * item.qty;
   }, 0);
 
-  const adjustedShippingFee =
+  const baseShippingFee =
     deliveryOption === "express"
       ? Math.round(shippingFee * 1.5)
       : shippingFee;
+
+  const adjustedShippingFee =
+    total >= FREE_SHIPPING_THRESHOLD ? 0 : baseShippingFee;
 
   // 💳 CRYPTO PAYMENT (NOWPAYMENTS)
   const handleCryptoPayment = async () => {
@@ -179,7 +184,9 @@ useEffect(() => {
           phone,
           address,
           amount: total + adjustedShippingFee,
-          payment_method: "crypto"
+          payment_method: "crypto",
+          shipping_method: deliveryOption,
+          shipping_fee: adjustedShippingFee,
         }),
       });
 
@@ -250,6 +257,8 @@ useEffect(() => {
         status: "pending",
         payment_status: "unpaid",
         payment_method: "card",
+        shipping_method: deliveryOption,
+        shipping_fee: adjustedShippingFee,
       }),
     });
 
@@ -338,6 +347,8 @@ useEffect(() => {
     handler.openIframe();
   };
 
+  const canProceed = name && email && phone && address && cart.length > 0;
+
   const retryPayment = () => {
     setError("");
     setStep("idle");
@@ -350,12 +361,19 @@ useEffect(() => {
   };
 
   return (
-    <div className="min-h-screen mt-32 px-6 md:px-20 flex flex-col md:flex-row gap-10 text-black">
+    <div className="min-h-screen mt-28 px-4 md:px-20 grid md:grid-cols-3 gap-8 text-black">
 
       {/* LEFT */}
-      <div className="flex-1 space-y-4">
+      <div className="md:col-span-2 bg-white border rounded-xl p-6 shadow-sm space-y-4">
 
         <h1 className="text-2xl font-semibold">Checkout</h1>
+        <div className="flex items-center gap-2 text-xs mb-4">
+          <span className={checkoutStep >= 1 ? "font-bold" : "text-gray-400"}>Information</span>
+          →
+          <span className={checkoutStep >= 2 ? "font-bold" : "text-gray-400"}>Shipping</span>
+          →
+          <span className={checkoutStep >= 3 ? "font-bold" : "text-gray-400"}>Payment</span>
+        </div>
 
         <input
           type="text"
@@ -388,56 +406,90 @@ useEffect(() => {
           className="w-full border p-3 outline-none h-32"
         />
 
+        <div className="flex justify-between mt-4">
+          {checkoutStep > 1 && (
+            <button
+              type="button"
+              onClick={() => setCheckoutStep((s) => s - 1)}
+              className="px-4 py-2 border rounded"
+            >
+              Back
+            </button>
+          )}
+          {checkoutStep < 3 && (
+            <button
+              type="button"
+              onClick={() => setCheckoutStep((s) => s + 1)}
+              className="px-4 py-2 bg-black text-white rounded ml-auto"
+            >
+              Next
+            </button>
+          )}
+        </div>
+
       </div>
 
       {/* RIGHT */}
-      <div className="w-full md:w-[400px] border p-5 h-fit">
+      <div className="md:col-span-1 bg-white border rounded-xl p-6 shadow-sm md:sticky md:top-24 h-fit">
 
         <div className="mb-4">
           <p className="text-sm font-medium mb-2">Select Payment Method</p>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => setPaymentMethod("card")}
-              className={`px-3 py-1 border ${
-                paymentMethod === "card" ? "bg-black text-white" : ""
-              }`}
-            >
-              Card (Paystack)
-            </button>
+          <div className="mt-6">
+            <p className="font-semibold mb-2">Payment Method</p>
 
-            <button
-              onClick={() => setPaymentMethod("crypto")}
-              className={`px-3 py-1 border ${
-                paymentMethod === "crypto" ? "bg-black text-white" : ""
-              }`}
-            >
-              Crypto (USDT)
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+
+              <button
+                onClick={() => setPaymentMethod("card")}
+                className={`p-3 border rounded-lg ${paymentMethod === "card" ? "bg-black text-white border-black" : "hover:bg-gray-50"}`}
+              >
+                Card
+              </button>
+
+              <button
+                onClick={() => setPaymentMethod("crypto")}
+                className={`p-3 border rounded-lg ${paymentMethod === "crypto" ? "bg-black text-white border-black" : "hover:bg-gray-50"}`}
+              >
+                Crypto
+              </button>
+
+            </div>
           </div>
 
-          <div className="mt-4">
-            <p className="text-sm font-medium mb-2">Delivery Option</p>
+          <div className="mt-6">
+            <p className="font-semibold mb-3">Shipping Method</p>
+            <p className="text-xs text-green-600 mb-2">
+              Free shipping on orders above ${FREE_SHIPPING_THRESHOLD}
+            </p>
+            {shippingLoading && (
+              <div className="text-xs text-gray-500 mb-2">
+                Calculating shipping rates...
+              </div>
+            )}
+            <div className="space-y-3">
 
-            <div className="flex gap-3">
-
-              <button
+              <div
                 onClick={() => setDeliveryOption("standard")}
-                className={`px-3 py-1 border ${
-                  deliveryOption === "standard" ? "bg-black text-white" : ""
-                }`}
+                className={`p-4 border rounded-lg cursor-pointer ${deliveryOption === "standard" ? "border-black bg-gray-50" : "hover:bg-gray-50"}`}
               >
-                Standard
-              </button>
+                <div className="flex justify-between">
+                  <p className="font-medium">Standard Delivery</p>
+                  <p>${shippingFee}</p>
+                </div>
+                <p className="text-xs text-gray-500">3–5 business days</p>
+              </div>
 
-              <button
+              <div
                 onClick={() => setDeliveryOption("express")}
-                className={`px-3 py-1 border ${
-                  deliveryOption === "express" ? "bg-black text-white" : ""
-                }`}
+                className={`p-4 border rounded-lg cursor-pointer ${deliveryOption === "express" ? "border-black bg-gray-50" : "hover:bg-gray-50"}`}
               >
-                Express (+50%)
-              </button>
+                <div className="flex justify-between">
+                  <p className="font-medium">Express Delivery</p>
+                  <p>${adjustedShippingFee}</p>
+                </div>
+                <p className="text-xs text-gray-500">1–2 business days</p>
+              </div>
 
             </div>
           </div>
@@ -509,7 +561,7 @@ useEffect(() => {
         </div>
 
         <button
-          disabled={loading || cart.length === 0}
+          disabled={!canProceed || loading}
           onClick={paymentMethod === "card" ? handlePayment : handleCryptoPayment}
           className={`w-full bg-black text-white py-3 mt-5 transition ${
             loading ? "opacity-50 cursor-not-allowed" : "hover:opacity-80"

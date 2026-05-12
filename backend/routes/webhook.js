@@ -154,6 +154,7 @@ router.post("/", async (req, res) => {
     // SUCCESS PAYMENT
     // =========================
     if (event === "charge.success") {
+      // NOTE: invoice_id reserved for future use
       const invoice_id = body?.data?.metadata?.invoice_id;
       const reference = body?.data?.reference;
 
@@ -167,7 +168,7 @@ router.post("/", async (req, res) => {
       const cleanOrderId = orderId?.toString()?.trim();
 
       console.log("🧾 WEBHOOK ORDER_ID FROM METADATA:", cleanOrderId);
-      console.log("📦 METADATA DEBUG:", body?.data?.metadata);
+      console.log("📦 METADATA DEBUG:", JSON.stringify(body?.data?.metadata || {}, null, 2));
 
       let order = null;
       console.log("🔎 LOOKING UP ORDER IN SUPABASE...");
@@ -216,6 +217,7 @@ router.post("/", async (req, res) => {
           status: "paid",
           payment_status: "paid",
           payment_method: "card",
+          shipping_status: "processing"
         })
         .eq("id", order.id);
 
@@ -258,7 +260,7 @@ Order ID: ${order.id}
 📦 ITEMS PURCHASED:
 ${productList || "No items found"}
 
-💰 TOTAL PAID: ₦${Number(order.total || 0).toLocaleString()}
+💰 TOTAL PAID: ₦${Number(order.total || order.total_price || 0).toLocaleString()}
 
 📍 DELIVERY ADDRESS:
 ${order.address || "Not provided"}

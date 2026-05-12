@@ -263,18 +263,34 @@ If you have any questions, feel free to contact us anytime.
       // CREATE SHIPBUBBLE DELIVERY
       // =========================
       try {
+        if (finalOrder.tracking_id) {
+          console.log('⚠️ SHIPMENT ALREADY EXISTS - SKIPPING');
+          return res.sendStatus(200);
+        }
         const shipment = await createShipment(finalOrder);
 
         if (shipment) {
+
+          // UPDATE SHIPPING STATUS
           await supabase
             .from('orders')
             .update({
               tracking_id: shipment.tracking_id || shipment.id || null,
-              courier: 'Shipbubble'
+              courier: 'Shipbubble',
+              shipping_status: 'shipped'
             })
             .eq('id', finalOrder.id);
 
           console.log('🚚 SHIPMENT CREATED:', shipment);
+
+          // SEND SHIPPED EMAIL (NON-BLOCKING)
+          if (finalOrder.email) {
+            sendEmail(
+              finalOrder.email,
+              'Your order is being shipped 🚚',
+              `Good news! Your order has been shipped.\n\nTracking ID: ${shipment.tracking_id || shipment.id || 'Pending'}`
+            );
+          }
         }
       } catch (err) {
         console.log('❌ SHIPBUBBLE ERROR:', err.message);

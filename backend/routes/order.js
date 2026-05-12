@@ -108,9 +108,31 @@ router.put('/:id/payment-success', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: order, error } = await supabase
+    // 1. GET EXISTING ORDER FIRST (FOR DUPLICATE EMAIL PREVENTION)
+    const { data: existingOrder, error: fetchError } = await supabase
       .from('orders')
-      .update({ payment_status: 'paid', status: 'paid' })
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError) {
+      return res.status(400).json({ error: fetchError.message });
+    }
+
+    if (!existingOrder) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const wasAlreadyPaid = existingOrder.payment_status === 'paid';
+
+    // 2. UPDATE ORDER
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        payment_status: 'paid',
+        status: 'paid',
+        shipping_status: 'processing'
+      })
       .eq('id', id)
       .select()
       .maybeSingle();
@@ -119,17 +141,20 @@ router.put('/:id/payment-success', async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
+    const order = data;
 
-    // prevent duplicate email
-    if (order.email && order.payment_status === 'paid') {
-      const items = typeof order.items === 'string'
-        ? JSON.parse(order.items)
-        : Array.isArray(order.items)
-        ? order.items
-        : [];
+    // prevent duplicate email (ONLY SEND IF IT WAS NOT PREVIOUSLY PAID)
+    if (order.email && !wasAlreadyPaid) {
+      let items = [];
+      try {
+        items = typeof order.items === 'string'
+          ? JSON.parse(order.items)
+          : Array.isArray(order.items)
+          ? order.items
+          : [];
+      } catch (e) {
+        items = [];
+      }
 
       const productList = items.length
         ? items.map(i => `- ${i?.name || 'Item'} x${i?.qty || 1}`).join('\n')
@@ -149,6 +174,7 @@ router.put('/:id/payment-success', async (req, res) => {
   }
 });
 
+// NOTE: Prevent email spam - only send updates when status exists
 // ✏️ UPDATE ORDER STATUS (FIXED)
 router.put('/:id', async (req, res) => {
   try {
@@ -173,7 +199,7 @@ router.put('/:id', async (req, res) => {
 
     const order = Array.isArray(data) ? data[0] : data;
 
-    if (order?.email) {
+    if (order?.email && status) {
       await sendEmail(
         order.email,
         'Order Update - Velra',
