@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
 const { createClient } = require("@supabase/supabase-js");
+const createShipment = require('../services/easyship');
 let Resend;
 try {
   Resend = require("resend").Resend;
@@ -222,6 +223,36 @@ router.post("/", async (req, res) => {
         .eq("id", order.id);
 
       console.log("✅ ORDER UPDATED");
+
+      // =========================
+      // 🚚 EASYSHIP AUTO SHIPPING
+      // =========================
+      try {
+        if (!order.tracking_id) {
+          console.log("🚚 CREATING EASYSHIP SHIPMENT...");
+
+          const shipment = await createShipment(order);
+
+          if (shipment) {
+            await supabase
+              .from("orders")
+              .update({
+                tracking_id: shipment.tracking_id || shipment.id || null,
+                courier: "Easyship",
+                shipping_status: "processing"
+              })
+              .eq("id", order.id);
+
+            console.log("🚚 EASYSHIP SHIPMENT CREATED:", shipment.tracking_id || shipment.id);
+          } else {
+            console.log("⚠️ EASYSHIP DID NOT RETURN SHIPMENT");
+          }
+        } else {
+          console.log("⚠️ SHIPPING ALREADY EXISTS - SKIPPING");
+        }
+      } catch (err) {
+        console.log("❌ EASYSHIP SHIPPING ERROR:", err.message);
+      }
 
       // SEND EMAIL
       if (order.email) {

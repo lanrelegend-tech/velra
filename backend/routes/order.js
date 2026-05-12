@@ -1,5 +1,6 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const createShipment = require('../services/easyship');
 let Resend;
 
 try {
@@ -142,6 +143,28 @@ router.put('/:id/payment-success', async (req, res) => {
     }
 
     const order = data;
+
+    // 🚚 CREATE EASYSHIP SHIPMENT ON FIRST PAYMENT ONLY
+    if (!wasAlreadyPaid && order) {
+      try {
+        const shipment = await createShipment(order);
+
+        if (shipment) {
+          await supabase
+            .from('orders')
+            .update({
+              tracking_id: shipment.tracking_id || shipment.id || null,
+              courier: 'Easyship',
+              shipping_status: 'processing'
+            })
+            .eq('id', order.id);
+
+          console.log('🚚 EASYSHIP SHIPMENT CREATED:', shipment.tracking_id || shipment.id);
+        }
+      } catch (err) {
+        console.log('❌ EASYSHIP SHIPMENT ERROR:', err.message);
+      }
+    }
 
     // prevent duplicate email (ONLY SEND IF IT WAS NOT PREVIOUSLY PAID)
     if (order.email && !wasAlreadyPaid) {

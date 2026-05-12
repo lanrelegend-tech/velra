@@ -71,7 +71,7 @@ router.post("/", async (req, res) => {
     // -----------------------------
     // 2. EXTRACT DATA SAFELY
     // -----------------------------
-    const status = body.payment_status;
+    const status = (body.payment_status || "").toLowerCase();
     const orderId = body.order_id || body.payment_id || body?.metadata?.order_id;
 
     if (!orderId) {
@@ -104,7 +104,7 @@ router.post("/", async (req, res) => {
     // -----------------------------
     // 5. VALID PAYMENT STATUS (NOWPAYMENTS)
     // -----------------------------
-    const validStatuses = ["finished", "confirmed", "sending", "partially_paid"];
+    const validStatuses = ["finished", "confirmed", "sending", "partially_paid", "complete", "completed"];
 
     if (!validStatuses.includes(status)) {
       console.log("⏳ PAYMENT NOT COMPLETE:", status);
@@ -176,13 +176,11 @@ ${productList}
 — Velra Team`;
 
     if (finalOrder.email) {
-      sendEmail(
+      await sendEmail(
         finalOrder.email,
         "Crypto Payment Confirmed 🎉 - Velra",
         emailMessage
-      ).catch((err) => {
-        console.log("❌ EMAIL ERROR:", err.message);
-      });
+      );
     }
 
     console.log("✅ CRYPTO PAYMENT PROCESSED:", finalOrder.id);

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const createShipment = require('../services/shipbubble');
+const createShipment = require('../services/easyship');
 const { createClient } = require('@supabase/supabase-js');
 let Resend;
 try {
@@ -260,12 +260,11 @@ If you have any questions, feel free to contact us anytime.
       }
 
       // =========================
-      // CREATE SHIPBUBBLE DELIVERY
+      // CREATE EASYSHIP DELIVERY
       // =========================
       try {
         if (finalOrder.tracking_id) {
           console.log('⚠️ SHIPMENT ALREADY EXISTS - SKIPPING');
-          return res.sendStatus(200);
         }
         const shipment = await createShipment(finalOrder);
 
@@ -276,7 +275,7 @@ If you have any questions, feel free to contact us anytime.
             .from('orders')
             .update({
               tracking_id: shipment.tracking_id || shipment.id || null,
-              courier: 'Shipbubble',
+              courier: 'Easyship',
               shipping_status: 'shipped'
             })
             .eq('id', finalOrder.id);
@@ -293,7 +292,7 @@ If you have any questions, feel free to contact us anytime.
           }
         }
       } catch (err) {
-        console.log('❌ SHIPBUBBLE ERROR:', err.message);
+        console.log('❌ EASYSHIP ERROR:', err.message);
       }
 
       await logWebhook({
