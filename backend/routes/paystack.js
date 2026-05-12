@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const createShipment = require('../services/shipbubble');
 const { createClient } = require('@supabase/supabase-js');
 let Resend;
 try {
@@ -256,6 +257,27 @@ If you have any questions, feel free to contact us anytime.
           "Payment Confirmed 🎉 - Velra",
           emailMessage
         );
+      }
+
+      // =========================
+      // CREATE SHIPBUBBLE DELIVERY
+      // =========================
+      try {
+        const shipment = await createShipment(finalOrder);
+
+        if (shipment) {
+          await supabase
+            .from('orders')
+            .update({
+              tracking_id: shipment.tracking_id || shipment.id || null,
+              courier: 'Shipbubble'
+            })
+            .eq('id', finalOrder.id);
+
+          console.log('🚚 SHIPMENT CREATED:', shipment);
+        }
+      } catch (err) {
+        console.log('❌ SHIPBUBBLE ERROR:', err.message);
       }
 
       await logWebhook({

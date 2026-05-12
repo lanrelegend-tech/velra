@@ -57,6 +57,12 @@ console.log("📦 Backend initializing...");
 app.use("/orders", orderRoutes);
 app.use("/paystack", paystackRoutes);
 app.use("/crypto", require("./routes/cryptoWebhook"));
+const shippingRoute = require("./routes/shipping");
+
+app.use("/api", shippingRoute);
+const shipbubbleWebhook = require("./routes/shipbubbleWebhook");
+// 🚚 Shipbubble webhook + API routes (rates, tracking, webhooks)
+app.use("/api/shipbubble", shipbubbleWebhook);
 
 // =========================
 // WEBHOOK TEST ROUTE (DEBUG)
@@ -223,7 +229,26 @@ app.post("/crypto/init", async (req, res) => {
 // =========================
 // CRYPTO WEBHOOK
 // =========================
-// 🪙 Crypto webhook moved to routes/crypto.js
+// 🪙 Crypto webhook handled in routes/cryptoWebhook.js
+
+// =========================
+// 404 HANDLER
+// =========================
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// =========================
+// GLOBAL ERROR HANDLER
+// =========================
+app.use((err, req, res, next) => {
+  console.log("❌ GLOBAL ERROR:", err.message);
+
+  res.status(500).json({
+    error: "Internal server error",
+    message: err.message,
+  });
+});
 
 // =========================
 // START SERVER

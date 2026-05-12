@@ -21,6 +21,8 @@ function CheckoutPage() {
   const [step, setStep] = useState("idle");
   const [paymentData, setPaymentData] = useState(null);
   const [error, setError] = useState("");
+  const [shippingFee, setShippingFee] = useState(0);
+  const [deliveryOption, setDeliveryOption] = useState("standard");
 
   // ✅ LOAD USER DATA FROM CUSTOMERS TABLE
   useEffect(() => {
@@ -68,6 +70,36 @@ function CheckoutPage() {
     loadUser();
   }, []);
 
+  // 🚚 LOAD SHIPPING PRICE
+  useEffect(() => {
+    const getShippingPrice = async () => {
+      try {
+        if (!address || cart.length === 0) return;
+
+        const res = await fetch("https://velra-2.onrender.com/api/shipping-price", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            address,
+            items: cart,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (data?.shipping_fee !== undefined) {
+          setShippingFee(Number(data.shipping_fee) || 0);
+        }
+      } catch (err) {
+        console.log("SHIPPING FETCH ERROR:", err.message);
+      }
+    };
+
+    getShippingPrice();
+  }, [address, cart, deliveryOption]);
+
   // ✅ LOAD PAYSTACK
   useEffect(() => {
     const script = document.createElement("script");
@@ -99,6 +131,11 @@ function CheckoutPage() {
     return sum + item.price * item.qty;
   }, 0);
 
+  const adjustedShippingFee =
+    deliveryOption === "express"
+      ? Math.round(shippingFee * 1.5)
+      : shippingFee;
+
   // 💳 CRYPTO PAYMENT (NOWPAYMENTS)
   const handleCryptoPayment = async () => {
     setLoading(true);
@@ -124,7 +161,7 @@ function CheckoutPage() {
           email,
           phone,
           address,
-          amount: total,
+          amount: total + adjustedShippingFee,
           payment_method: "crypto"
         }),
       });
@@ -192,7 +229,7 @@ function CheckoutPage() {
         phone,
         address,
         items: cart,
-        total,
+        total: total + adjustedShippingFee,
         status: "pending",
         payment_status: "unpaid",
         payment_method: "card",
@@ -245,7 +282,7 @@ function CheckoutPage() {
     const handler = window.PaystackPop.setup({
       key: "pk_test_499eccfecb3ba036608bc11567ea7a641205b940",
       email,
-      amount: total * 100,
+      amount: (total + adjustedShippingFee) * 100,
       currency: "NGN",
 
       metadata: {
@@ -361,6 +398,32 @@ function CheckoutPage() {
               Crypto (USDT)
             </button>
           </div>
+
+          <div className="mt-4">
+            <p className="text-sm font-medium mb-2">Delivery Option</p>
+
+            <div className="flex gap-3">
+
+              <button
+                onClick={() => setDeliveryOption("standard")}
+                className={`px-3 py-1 border ${
+                  deliveryOption === "standard" ? "bg-black text-white" : ""
+                }`}
+              >
+                Standard
+              </button>
+
+              <button
+                onClick={() => setDeliveryOption("express")}
+                className={`px-3 py-1 border ${
+                  deliveryOption === "express" ? "bg-black text-white" : ""
+                }`}
+              >
+                Express (+50%)
+              </button>
+
+            </div>
+          </div>
         </div>
 
         {step !== "idle" && (
@@ -414,8 +477,18 @@ function CheckoutPage() {
         </div>
 
         <div className="flex justify-between font-semibold mt-5 border-t pt-3">
-          <p>Total</p>
+          <p>Subtotal</p>
           <p>${total.toLocaleString()}</p>
+        </div>
+
+        <div className="flex justify-between text-sm mt-2">
+          <p>Shipping Fee ({deliveryOption})</p>
+          <p>${adjustedShippingFee.toLocaleString()}</p>
+        </div>
+
+        <div className="flex justify-between font-bold mt-2 border-t pt-2">
+          <p>Total</p>
+          <p>${(total + adjustedShippingFee).toLocaleString()}</p>
         </div>
 
         <button
