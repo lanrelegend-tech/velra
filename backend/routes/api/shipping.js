@@ -70,7 +70,7 @@ router.post("/", async (req, res) => {
     const response = await axios.post(
       `${BASE_URL}/2023-01/rates`,
       {
-        origin_country_alpha2: "NG",
+        origin_country_alpha2: "CA",
         destination_country_alpha2: country,
         destination_address: destination,
         parcels: [

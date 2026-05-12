@@ -12,34 +12,69 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // 🔢 Calculate total weight (fallback if no weight provided)
-    const totalWeight = items.reduce((sum, item) => {
-      const weight = item.weight || 0.5; // default 0.5kg per item
-      return sum + weight * (item.qty || 1);
-    }, 0);
+    // 🚀 TRY EASYSHIP FIRST (REAL SHIPPING RATES)
+    let shippingFee = null;
 
-    // 💰 Base pricing logic (simple MVP pricing)
-    let shippingFee = 10;
+    try {
+      const easyshipRes = await fetch("https://public-api.easyship.com/rates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.EASYSHIP_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({
+          origin_country: origin_country || "CA",
+          destination: {
+            country: destination.country,
+            city: destination.city,
+            state: destination.state,
+            postal_code: destination.postal_code,
+            address_line_1: destination.address_line_1,
+          },
+          parcels: items.map((item) => ({
+            weight: item.weight || 0.5,
+            quantity: item.qty || 1,
+          })),
+        }),
+      });
 
-    // weight-based increase
-    if (totalWeight > 2) shippingFee = 15;
-    if (totalWeight > 5) shippingFee = 25;
-    if (totalWeight > 10) shippingFee = 40;
+      const easyshipData = await easyshipRes.json();
 
-    // 🚚 delivery option adjustment
-    if (deliveryOption === "express") {
-      shippingFee += 10;
+      // try to extract cheapest rate safely
+      const rates = easyshipData?.rates || easyshipData?.data?.rates;
+
+      if (rates && rates.length > 0) {
+        shippingFee = Number(rates[0].total_charge || rates[0].price || rates[0].rate);
+      }
+    } catch (err) {
+      console.log("Easyship rates failed, using fallback:", err.message);
     }
 
-    // 📍 simple country logic (expand later with real API like Easyship/Shippo)
-    if (destination?.country && destination.country !== "CA") {
-      shippingFee += 20;
+    // 🧠 FALLBACK IF EASYSHIP FAILS
+    if (!shippingFee) {
+      const totalWeight = items.reduce((sum, item) => {
+        const weight = item.weight || 0.5;
+        return sum + weight * (item.qty || 1);
+      }, 0);
+
+      shippingFee = 10;
+
+      if (totalWeight > 2) shippingFee = 15;
+      if (totalWeight > 5) shippingFee = 25;
+      if (totalWeight > 10) shippingFee = 40;
+
+      if (destination?.country && destination.country !== "CA") {
+        shippingFee += 20;
+      }
+
+      if (deliveryOption === "express") {
+        shippingFee += 10;
+      }
     }
 
     return res.json({
       shipping_fee: shippingFee,
       currency: "USD",
-      total_weight: totalWeight,
     });
   } catch (error) {
     console.error("Shipping price error:", error);
