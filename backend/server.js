@@ -85,7 +85,6 @@ app.use("/crypto", cryptoWebhookRoutes);
 app.use("/api/crypto", cryptoWebhookRoutes);
 
 // Shipping
-app.use("/shipping-price", shippingRoute);
 app.use("/api/shipping-price", shippingRoute);
 
 // Easyship Webhook
