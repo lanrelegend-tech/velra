@@ -41,6 +41,11 @@ const isCanadaValid = () => {
   );
 };
 
+// ✅ EMAIL VALIDATION
+const isValidEmail = (email) => {
+  return /\S+@\S+\.\S+/.test(email);
+};
+
 // ✅ STEP VALIDATION LOGIC
 const isStep1Valid =
   name?.trim()?.length > 0 &&
@@ -56,6 +61,15 @@ const isStep2Valid =
   country === "CA";
 
 // Optional: grouped step control (useful for Next button later)
+const canProceed =
+  name?.trim() &&
+  email?.trim() &&
+  phone?.trim() &&
+  address?.trim() &&
+  cart.length > 0 &&
+  isCanadaValid() &&
+  isValidEmail(email);
+
 const canProceedStep = {
   1: isStep1Valid,
   2: isStep2Valid,
@@ -132,12 +146,14 @@ useEffect(() => {
   document.body.appendChild(script);
 }, []);
 
-// FETCH SHIPPING RATE (REAL SHIPPING PER ADDRESS)
+// FETCH SHIPPING RATE (OPTIMIZED + DEBOUNCED)
 useEffect(() => {
-  const getShipping = async () => {
-    try {
-      if (!address || !postalCode || !city || !province || cart.length === 0) return;
+  if (!isStep2Valid || cart.length === 0) return;
 
+  const controller = new AbortController();
+
+  const timeout = setTimeout(async () => {
+    try {
       setShippingLoading(true);
 
       const items = cart.map((item) => ({
@@ -150,44 +166,44 @@ useEffect(() => {
         height: item.height || 10,
       }));
 
-      const res = await fetch("https://velra-2.onrender.com/api/shipping-price", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          origin_country: "CA",
-          destination: {
-            address_line_1: address,
-            city,
-            state: province,
-            postal_code: postalCode,
-            country: "CA",
-          },
-          items,
-        }),
-      });
+      const res = await fetch(
+        "https://velra-2.onrender.com/api/shipping-price",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            origin_country: "CA",
+            destination: {
+              address_line_1: address,
+              city,
+              state: province,
+              postal_code: postalCode,
+              country: "CA",
+            },
+            items,
+          }),
+        }
+      );
 
       const data = await res.json();
 
-      if (data?.shipping_fee !== undefined) {
-        setShippingFee(Number(data.shipping_fee));
-      } else {
+      setShippingFee(Number(data?.shipping_fee ?? 15));
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.log("SHIPPING ERROR:", err.message);
         setShippingFee(15);
       }
-    } catch (err) {
-      console.log("SHIPPING ERROR:", err.message);
-      setShippingFee(15);
     } finally {
       setShippingLoading(false);
     }
+  }, 600);
+
+  return () => {
+    clearTimeout(timeout);
+    controller.abort();
   };
-
-  getShipping();
-}, [address, cart, deliveryOption, postalCode, city, province]);
-
-// ✅ EMAIL VALIDATION
-const isValidEmail = (email) => {
-  return /\S+@\S+\.\S+/.test(email);
-};
+}, [address, cart, deliveryOption, postalCode, city, province, isStep2Valid]);
 
 const openModal = (msg) => {
   setMessage(msg);
@@ -383,15 +399,6 @@ const handlePayment = async () => {
 
   handler.openIframe();
 };
-
-// ✅ FINAL VALIDATION
-const canProceed =
-  name &&
-  email &&
-  phone &&
-  address &&
-  cart.length > 0 &&
-  isCanadaValid();
 
 const retryPayment = () => {
   setError("");
