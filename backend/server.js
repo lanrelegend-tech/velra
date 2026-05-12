@@ -168,7 +168,7 @@ const sendEmail = async (to, subject, text) => {
   } catch (err) {
     console.log("❌ EMAIL ERROR:", err.message);
   }
-});
+};
 
 // =========================
 // PRODUCTS
