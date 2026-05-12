@@ -35,14 +35,11 @@ router.post("/", async (req, res) => {
 
     console.log("🚚 EASYSHIP WEBHOOK:", event);
 
-    console.log("ENV CHECK:", {
-      smtp: !!process.env.SMTP_HOST,
-      user: !!process.env.SMTP_USER,
-      pass: !!process.env.SMTP_PASS,
-    });
-
     const status = (event?.status || "").toLowerCase();
     const tracking = event?.tracking_number || event?.tracking_id;
+
+    if (!tracking) return res.sendStatus(200);
+    if (!status) return res.sendStatus(200);
 
     const { data: order } = await supabase
       .from("orders")
@@ -51,8 +48,6 @@ router.post("/", async (req, res) => {
       .maybeSingle();
 
     const customerEmail = order?.email;
-
-    if (!tracking) return res.sendStatus(200);
 
     let update = {};
 
@@ -69,7 +64,6 @@ router.post("/", async (req, res) => {
     }
     if (status === "delivered") {
       update.status = "delivered";
-      update.payment_status = "paid";
 
       if (customerEmail) {
         sendEmail(
@@ -89,6 +83,11 @@ router.post("/", async (req, res) => {
           "We encountered an issue with your delivery. We will resolve it shortly."
         );
       }
+    }
+
+    if (Object.keys(update).length === 0) {
+      console.log("⚠️ No valid status update from Easyship webhook");
+      return res.sendStatus(200);
     }
 
     await supabase

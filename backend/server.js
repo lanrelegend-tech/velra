@@ -17,8 +17,8 @@ const { createClient } = require("@supabase/supabase-js");
 const orderRoutes = require("./routes/order");
 const paystackRoutes = require("./routes/paystack");
 const cryptoWebhookRoutes = require("./routes/cryptoWebhook");
-const shippingRoute = require("./routes/shipping");
-const shipbubbleWebhook = require("./routes/shipbubbleWebhook");
+const shippingRoute = require("./routes/api/shipping");
+const easyshipWebhook = require("./routes/api/easyshipWebhook");
 
 const app = express();
 
@@ -88,9 +88,8 @@ app.use("/api/crypto", cryptoWebhookRoutes);
 app.use("/shipping-price", shippingRoute);
 app.use("/api/shipping-price", shippingRoute);
 
-// Shipbubble
-app.use("/shipbubble", shipbubbleWebhook);
-app.use("/api/shipbubble", shipbubbleWebhook);
+// Easyship Webhook
+app.use("/api/easyship/webhook", easyshipWebhook);
 
 // =========================
 // WEBHOOK TEST ROUTE
