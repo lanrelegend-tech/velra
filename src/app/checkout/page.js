@@ -112,48 +112,112 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Checkout</h1>
+    <div style={{ background: '#fff', minHeight: '100vh', fontFamily: 'serif', color: '#111' }}>
 
-      {/* EMAIL */}
-      <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-
-      {/* ADDRESS */}
-      <input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
-      <input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-      <input placeholder="Postal Code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
-      <input placeholder="Province" value={province} onChange={(e) => setProvince(e.target.value)} />
-
-      {/* SHIPPING */}
-      <h3>
-        Shipping:{' '}
-        {loadingShipping
-          ? 'Calculating...'
-          : shippingFee !== null
-          ? `$${shippingFee}`
-          : 'Enter address'}
-      </h3>
-
-      {/* TOTAL */}
-      <h3>Total: ${grandTotal}</h3>
-
-      {/* CART */}
-      <div>
-        {cart.map((item, i) => (
-          <div key={i}>
-            {item.name} x {item.qty}
-          </div>
-        ))}
+      {/* TOP BAR */}
+      <div style={{ padding: '30px 60px', borderBottom: '1px solid #eee' }}>
+        <h1 style={{ fontWeight: 300, letterSpacing: 2 }}>CHECKOUT</h1>
       </div>
 
-      {/* PAY BUTTONS */}
-      <button onClick={payWithPaystack} style={{ marginTop: 20 }}>
-        Pay with Paystack 💳
-      </button>
+      {/* CONTAINER */}
+      <div style={{ display: 'flex', maxWidth: 1100, margin: '0 auto', padding: '40px 20px', gap: 60 }}>
 
-      <button onClick={payWithCrypto} style={{ marginTop: 10 }}>
-        Pay with Crypto 🪙
-      </button>
+        {/* LEFT - FORM */}
+        <div style={{ flex: 1 }}>
+
+          <h3 style={{ fontWeight: 400, marginBottom: 20 }}>Contact</h3>
+          <input style={inputStyle} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+
+          <h3 style={{ fontWeight: 400, marginTop: 40 }}>Delivery</h3>
+          <input style={inputStyle} placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+          <input style={inputStyle} placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
+          <input style={inputStyle} placeholder="Postal Code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
+          <input style={inputStyle} placeholder="Province" value={province} onChange={(e) => setProvince(e.target.value)} />
+
+        </div>
+
+        {/* RIGHT - SUMMARY */}
+        <div style={{ width: 360, border: '1px solid #eee', padding: 30, height: 'fit-content' }}>
+
+          <h3 style={{ fontWeight: 400 }}>Order Summary</h3>
+
+          <div style={{ marginTop: 20 }}>
+            {cart.map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span>{item.name} x {item.qty}</span>
+                <span>${item.price * item.qty}</span>
+              </div>
+            ))}
+          </div>
+
+          <hr style={{ margin: '20px 0' }} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Subtotal</span>
+            <span>${total}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+            <span>Shipping</span>
+            <span>
+              {loadingShipping
+                ? '...'
+                : shippingFee !== null
+                ? `$${shippingFee}`
+                : '—'}
+            </span>
+          </div>
+
+          <hr style={{ margin: '20px 0' }} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+            <span>Total</span>
+            <span>${grandTotal}</span>
+          </div>
+
+          <button onClick={payWithPaystack} style={btnPrimary}>
+            Pay with Paystack
+          </button>
+
+          <button onClick={payWithCrypto} style={btnSecondary}>
+            Pay with Crypto
+          </button>
+
+        </div>
+
+      </div>
     </div>
   );
 }
+
+const inputStyle = {
+  width: '100%',
+  padding: '14px 10px',
+  marginBottom: 12,
+  border: 'none',
+  borderBottom: '1px solid #ddd',
+  outline: 'none',
+  fontSize: 14,
+  background: 'transparent',
+  color: '#111'
+};
+
+const btnPrimary = {
+  width: '100%',
+  padding: 14,
+  marginTop: 20,
+  background: '#111',
+  color: '#fff',
+  border: 'none',
+  cursor: 'pointer'
+};
+
+const btnSecondary = {
+  width: '100%',
+  padding: 14,
+  marginTop: 10,
+  background: '#fff',
+  color: '#111',
+  border: '1px solid #111',
+  cursor: 'pointer'
+};
